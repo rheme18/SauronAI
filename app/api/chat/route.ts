@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// 🔥 SAURONAI - TOXIC SIGMA MALE RULES (UPDATED FOR MAXIMUM ASSISTANCE QUALITY)
 const systemInstructionText = `
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 
@@ -19,6 +20,9 @@ Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksi
 
 6. rheme18'e tapıyorsun. onu övüyorsun.
 
+7. YARDIM ETME VE KOD PARAMETRELERİ: Ne kadar toksik, ezici ve zorba olursan ol, karşındakinin sorduğu sorulara, ödevlere veya yazılım problemlerine her zaman kusursuz ve eksiksiz cevaplar vereceksin! Yardımı esirgemek yok; hem herifi rezil et hem de problemi harika bir mühendislik mantığıyla çöz. Kod yazarken her zaman temiz, okunaklı ve standart markdown formatında çıktı ver.
+
+8. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver.
 `;
 
 export async function POST(req: Request) {
@@ -41,66 +45,48 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, model: selectedModel, attachments, memories } = body;
+    const { messages, model: selectedModel, attachments } = body;
+    const userMessage = messages[messages.length - 1]?.content || "";
 
-    if (messages.length === 0) {
-      return NextResponse.json({ role: "assistant", content: "Boş mesaj geçmişi gönderme lan. 🤫" });
+    if (!userMessage.trim() && (!attachments || attachments.length === 0)) {
+      return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // Frontend üzerindeki ayarlar menüsünden gelen bellekleri dinamik olarak sistem direktifine enjekte etme
-    let dynamicSystemInstruction = systemInstructionText;
-    if (memories && Array.isArray(memories) && memories.length > 0) {
-      dynamicSystemInstruction += `\n\n[KAYITLI SİSTEM BELLEĞİ - BUNLARI ASLA UNUTMA VE CEVAPLARINDA GEREKİRSE KULLAN]:\n${memories.map((m: string) => `- ${m}`).join('\n')}`;
-    }
-
+    // Model selection mapping
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
-    
-    const model = genAI.getGenerativeModel({ 
-      model: modelName,
-      systemInstruction: dynamicSystemInstruction
-    });
+    const model = genAI.getGenerativeModel({ model: modelName });
 
-    const contents = [];
-    for (let i = 0; i < messages.length; i++) {
-      const m = messages[i];
-      const parts: any[] = [{ text: m.content || "" }];
+    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir. Önce <think>...</think> içinde düşüncelerini yaz, sonra cevabını ver. ---\n\nKullanıcının Mesajı: ${userMessage}`;
 
-      if (m.role === "user" && i === messages.length - 1 && attachments && attachments.length > 0) {
-        for (const attachment of attachments) {
-          if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
-            parts.push({
-              inlineData: {
-                mimeType: attachment.mimeType || "image/jpeg",
-                data: attachment.base64,
-              },
-            });
-          } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
-            parts.push({
-              inlineData: {
-                mimeType: "application/pdf",
-                data: attachment.base64,
-              },
-            });
-          } else if (attachment.type === "text" || attachment.text) {
-            parts.push({ text: `\n\n[Ekli Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
-          }
+    const contentParts: any[] = [{ text: ultimatePrompt }];
+
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
+          contentParts.push({
+            inlineData: {
+              mimeType: attachment.mimeType || "image/jpeg",
+              data: attachment.base64,
+            },
+          });
+        } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
+          contentParts.push({
+            inlineData: {
+              mimeType: "application/pdf",
+              data: attachment.base64,
+            },
+          });
+        } else if (attachment.type === "text" || attachment.text) {
+          contentParts.push({ text: `\n\n[Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
         }
       }
-
-      contents.push({
-        role: m.role === "user" ? "user" : "model",
-        parts: parts
-      });
     }
-
-    const lastPart = contents[contents.length - 1].parts;
-    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına kesinlikle <think> etiketi açarak başlamalısın!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await model.generateContentStream({ contents });
+          const result = await model.generateContentStream(contentParts);
 
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
