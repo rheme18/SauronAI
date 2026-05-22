@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowUp, Lock, ShieldAlert, Plus, X, FileText, ImageIcon, Brain, ChevronDown, Menu, MessageSquare, Trash2 } from 'lucide-react';
+import { Sparkles, ArrowUp, Lock, ShieldAlert, Plus, X, FileText, ImageIcon, Brain, ChevronDown, Menu, MessageSquare, Trash2, Settings, Save } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -38,12 +38,61 @@ const MODEL_LABELS: Record<ModelType, string> = {
 };
 
 // ----------------------------------------------------------------
+// Favicon Hover Morph Animasyon Bileşeni (Açma/Kapama İkonuna Dönüşür)
+// ----------------------------------------------------------------
+function FaviconToggle({ isOpen, onClick }: { isOpen: boolean; onClick: () => void }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-neutral-200/60 bg-transparent transition-all duration-200 relative overflow-hidden shrink-0"
+    >
+      <AnimatePresence mode="wait">
+        {isHovered ? (
+          <motion.div
+            key="menu-icon"
+            initial={{ scale: 0.6, opacity: 0, rotate: -90 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            exit={{ scale: 0.6, opacity: 0, rotate: 90 }}
+            transition={{ duration: 0.18 }}
+          >
+            <Menu size={18} className="text-neutral-800 stroke-[2.5]" />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="favicon-img"
+            initial={{ scale: 0.6, opacity: 0, rotate: 90 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            exit={{ scale: 0.6, opacity: 0, rotate: -90 }}
+            transition={{ duration: 0.18 }}
+            className="flex items-center justify-center"
+          >
+            <img 
+              src="/favicon.ico" 
+              alt="Favicon" 
+              className="w-5 h-5 object-contain" 
+              onError={(e) => {
+                // Eğer public dizininde favicon yoksa kırık görünmesin diye şık siyah bir nokta basar
+                (e.target as HTMLImageElement).style.display = 'none';
+              }} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+}
+
+// ----------------------------------------------------------------
 // Düşünce Zinciri (CoT) Paneli
 // ----------------------------------------------------------------
 function ThinkingPanel({ thinking }: { thinking: string }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="mb-4 w-full">
+    <div className="mb-4 w-full flex flex-col items-start">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 text-[12px] font-bold text-neutral-400 bg-neutral-50 border border-neutral-200/60 px-3 py-1.5 rounded-full hover:bg-neutral-100/80 hover:text-neutral-700 transition-all duration-200"
@@ -61,9 +110,9 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            className="overflow-hidden w-full"
           >
-            <div className="mt-2 text-[12px] text-neutral-500 bg-neutral-50/50 border border-neutral-200/40 border-l-2 border-l-purple-400 rounded-2xl p-4 leading-relaxed max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
+            <div className="mt-2 text-[12px] text-neutral-500 bg-neutral-50/50 border border-neutral-200/40 border-l-2 border-l-purple-400 rounded-2xl p-4 leading-relaxed max-h-40 overflow-y-auto font-mono whitespace-pre-wrap text-left w-full">
               {thinking}
             </div>
           </motion.div>
@@ -74,7 +123,7 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
 }
 
 // ----------------------------------------------------------------
-// Dosya Önizleme Kartı
+// Dosya Önizleme Çipi
 // ----------------------------------------------------------------
 function AttachmentChip({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
   return (
@@ -93,7 +142,7 @@ function AttachmentChip({ att, onRemove }: { att: Attachment; onRemove: () => vo
 }
 
 // ----------------------------------------------------------------
-// Gelişmiş Giriş Alanı (Genişletilmiş ve Yukarı Açılan Menüler)
+// Giriş Alanı Modülü (Yukarı Açılan İnput Menüleri)
 // ----------------------------------------------------------------
 interface InputBarProps {
   input: string;
@@ -237,7 +286,7 @@ function InputBar({
 }
 
 // ----------------------------------------------------------------
-// Ana Uygulama Paneli
+// Ana Sistem Paneli
 // ----------------------------------------------------------------
 export default function Home() {
   const [password, setPassword] = useState('');
@@ -247,6 +296,11 @@ export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Kayıtlı Bellek Sistemi
+  const [memories, setMemories] = useState<string[]>([]);
+  const [newMemory, setNewMemory] = useState('');
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -267,7 +321,7 @@ export default function Home() {
   const messages = currentConversation ? currentConversation.messages : [];
   const hasStarted = messages.length > 0;
 
-  // Geçmişi yükle/kaydet
+  // Geçmişi ve Bellekleri Lokal Depodan Çekme Döngüsü
   useEffect(() => {
     const saved = localStorage.getItem('sauron_chats');
     if (saved) {
@@ -277,6 +331,13 @@ export default function Home() {
           setConversations(parsed);
           setActiveId(parsed[0].id);
         }
+      } catch (e) { /* Pas */ }
+    }
+
+    const savedMemories = localStorage.getItem('sauron_memories');
+    if (savedMemories) {
+      try {
+        setMemories(JSON.parse(savedMemories));
       } catch (e) { /* Pas */ }
     }
   }, []);
@@ -290,10 +351,14 @@ export default function Home() {
   }, [conversations]);
 
   useEffect(() => {
+    localStorage.setItem('sauron_memories', JSON.stringify(memories));
+  }, [memories]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Sayfada herhangibir yere basıldığında otomatik kapatma motoru
+  // Sayfada herhangi bir yere basıldığında otomatik menü kapatma motoru
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -333,6 +398,22 @@ export default function Home() {
     if (activeId === id) {
       setActiveId(filtered.length > 0 ? filtered[0].id : '');
     }
+  };
+
+  const clearAllHistory = () => {
+    setConversations([]);
+    setActiveId('');
+    localStorage.removeItem('sauron_chats');
+  };
+
+  const addMemory = () => {
+    if (!newMemory.trim()) return;
+    setMemories(prev => [...prev, newMemory.trim()]);
+    setNewMemory('');
+  };
+
+  const removeMemory = (index:彻) => {
+    setMemories(prev => prev.filter((_, i) => i !== index));
   };
 
   const readFileAsBase64 = (file: File): Promise<string> =>
@@ -387,9 +468,6 @@ export default function Home() {
     e.target.value = '';
   }, []);
 
-  // ----------------------------------------------------------------
-  // Gelişmiş Ctrl + V (Pano Yapıştırma) Yakalayıcı Sistemi
-  // ----------------------------------------------------------------
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -436,7 +514,6 @@ export default function Home() {
     }
   }, []);
 
-  // Message Sender / Akıllı Kesintisiz Stream Buffer Motoru
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -485,6 +562,7 @@ export default function Home() {
         body: JSON.stringify({
           messages: currentHistory, 
           model,
+          memories, // Kayıtlı bellek havuzu API hattına gönderiliyor
           attachments: currentAttachments.map((a) => ({
             name: a.name,
             type: a.type,
@@ -503,14 +581,13 @@ export default function Home() {
       let fullBuffer = ''; 
       let rawAccumulatedText = '';
 
-      // Paket parçalanmasını ve zıplamayı engelleyen kesintisiz döngü çarkı
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         fullBuffer += decoder.decode(value, { stream: true });
         const parts = fullBuffer.split('\n');
-        fullBuffer = parts.pop() || ''; // Eksik kalan son satırı tampona al
+        fullBuffer = parts.pop() || '';
 
         for (const line of parts) {
           if (!line.startsWith('data: ')) continue;
@@ -558,7 +635,7 @@ export default function Home() {
                 return c;
               }));
             }
-          } catch { /* Parçalanmış JSON hatalarını safely yut */ }
+          } catch { /* Paket parçalanma sekansını pas geç */ }
         }
       }
       setIsLoading(false);
@@ -631,57 +708,106 @@ export default function Home() {
       <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
       <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,.js,.ts,.py,.json,.html,.css" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
 
-      {/* SOL GİZLENEBİLİR SIDEBAR */}
-      <AnimatePresence initial={false}>
-        {sidebarOpen && (
-          <motion.aside
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 300, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col shrink-0 z-40 overflow-hidden"
-          >
-            {/* Sidebar Üst Başlık ve Aksiyon Alanı */}
-            <div className="p-5 pt-6 flex flex-col gap-4 border-b border-neutral-200/30">
-              <div className="text-[19px] font-extrabold tracking-tight text-neutral-950">SauronAI</div>
-              <button
-                onClick={startNewChat}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 hover:border-neutral-300 rounded-full text-xs font-bold text-neutral-800 shadow-sm transition-all duration-200"
-              >
-                <Plus size={14} /> Yeni Görev Başlat
-              </button>
-            </div>
-
-            {/* Görev Geçmişi Listesi */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-1">
-              {conversations.map((chat) => {
-                const isSelected = chat.id === activeId;
-                return (
-                  <div
-                    key={chat.id}
-                    onClick={() => setActiveId(chat.id)}
-                    className={`group flex items-center justify-between px-3.5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? 'bg-neutral-200/60 text-neutral-950 font-bold' : 'text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-900'}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <MessageSquare size={15} className={isSelected ? 'text-neutral-950' : 'text-neutral-400'} />
-                      <span className="text-[13px] truncate max-w-[180px]">{chat.title}</span>
-                    </div>
-                    <button
-                      onClick={(e) => deleteChat(chat.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 p-1 transition-all"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+      {/* YAN SIDEBAR KONTROL MERKEZİ */}
+      <div className="h-screen flex shrink-0 z-40 relative">
+        <AnimatePresence initial={false} mode="wait">
+          {sidebarOpen ? (
+            /* GENİŞ AÇIK SIDEBAR */
+            <motion.aside
+              key="full-sidebar"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 300, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col justify-between overflow-hidden"
+            >
+              <div className="flex flex-col flex-1 min-h-0">
+                {/* Sol Üst Başlık ve İkon */}
+                <div className="p-5 pt-6 flex flex-col gap-4 border-b border-neutral-200/30">
+                  <div className="flex items-center gap-3">
+                    <FaviconToggle isOpen={sidebarOpen} onClick={() => setSidebarOpen(false)} />
+                    <span className="text-[19px] font-extrabold tracking-tight text-neutral-950">SauronAI</span>
                   </div>
-                );
-              })}
-              {conversations.length === 0 && (
-                <div className="text-center py-8 text-[12px] text-neutral-400 font-semibold">Kayıtlı görev yok.</div>
-              )}
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+                  <button
+                    onClick={startNewChat}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 hover:border-neutral-300 rounded-full text-xs font-bold text-neutral-800 shadow-sm transition-all duration-200"
+                  >
+                    <Plus size={14} /> Yeni Görev Başlat
+                  </button>
+                </div>
+
+                {/* Görev Geçmişi Listesi */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                  {conversations.map((chat) => {
+                    const isSelected = chat.id === activeId;
+                    return (
+                      <div
+                        key={chat.id}
+                        onClick={() => setActiveId(chat.id)}
+                        className={`group flex items-center justify-between px-3.5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? 'bg-neutral-200/60 text-neutral-950 font-bold' : 'text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-900'}`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <MessageSquare size={15} className={isSelected ? 'text-neutral-950' : 'text-neutral-400'} />
+                          <span className="text-[13px] truncate max-w-[180px]">{chat.title}</span>
+                        </div>
+                        <button
+                          onClick={(e) => deleteChat(chat.id, e)}
+                          className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 p-1 transition-all"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {conversations.length === 0 && (
+                    <div className="text-center py-8 text-[12px] text-neutral-400 font-semibold">Kayıtlı görev yok.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alt Ayarlar Butonu */}
+              <div className="p-4 border-t border-neutral-200/30">
+                <button
+                  onClick={() => setSettingsOpen(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-neutral-100 rounded-2xl text-[13px] font-bold text-neutral-600 hover:text-neutral-950 transition-all duration-200"
+                >
+                  <Settings size={18} />
+                  <span>Ayarlar</span>
+                </button>
+              </div>
+            </motion.aside>
+          ) : (
+            /* GEMINI TARZI İNCE KAPALI SIDEBAR SÜTUNU */
+            <motion.div
+              key="thin-sidebar"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 68, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col justify-between items-center py-6 overflow-hidden"
+            >
+              <div className="flex flex-col items-center gap-6">
+                <FaviconToggle isOpen={sidebarOpen} onClick={() => setSidebarOpen(true)} />
+                <button
+                  onClick={startNewChat}
+                  className="w-10 h-10 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-700 hover:border-neutral-400 shadow-sm transition-all"
+                  title="Yeni Görev Başlat"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="w-11 h-11 flex items-center justify-center rounded-2xl text-neutral-400 hover:text-neutral-950 hover:bg-neutral-100 transition-all duration-200"
+                title="Ayarlar"
+              >
+                <Settings size={20} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ANA İÇERİK AKIŞI */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative bg-white">
@@ -689,26 +815,20 @@ export default function Home() {
         {/* ÜST HEADER */}
         <header className="absolute top-0 left-0 right-0 h-16 bg-white/60 backdrop-blur-md border-b border-neutral-100/80 z-30 px-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="w-9 h-9 flex items-center justify-center hover:bg-neutral-50 border border-neutral-200/50 rounded-xl transition-colors text-neutral-600"
-            >
-              <Menu size={18} />
-            </button>
             {!sidebarOpen && (
-              <span className="text-[16px] font-extrabold tracking-tight text-neutral-950 animate-fade-in">SauronAI</span>
+              <span className="text-[17px] font-extrabold tracking-tight text-neutral-950">SauronAI</span>
             )}
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-md border border-neutral-250/30">{MODEL_LABELS[model]}</span>
+            <span className="text-[11px] font-bold text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-md border border-neutral-200/40">{MODEL_LABELS[model]}</span>
             <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Çevrimiçi
             </span>
           </div>
         </header>
 
-        {/* SPACIUS & BORDERLESS MESAJ FORMATI (KUTUCUKSUZ VE SAKİN TASARIM) */}
+        {/* MESAJ FORMATI (KUTUCUKSUZ - SEN SAĞDA, AI SOLDA) */}
         <div className="flex-1 overflow-y-auto pt-24 pb-40 px-5 flex flex-col items-center">
           <div className="w-full max-w-2xl flex flex-col">
             <AnimatePresence mode="wait">
@@ -726,49 +846,53 @@ export default function Home() {
                   </div>
                 </motion.div>
               ) : (
-                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-8">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="w-full flex flex-col items-start border-b border-neutral-100/40 pb-6">
-                      
-                      {/* Ekli Dosya Göstergeleri */}
-                      {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3 justify-start max-w-full">
-                          {msg.attachments.map((att) => (
-                            <div key={att.id} className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1 text-[11px] font-bold text-neutral-500 shadow-sm">
-                              {att.type === 'image' && att.previewUrl ? (
-                                <img src={att.previewUrl} alt={att.name} className="w-4 h-4 rounded-full object-cover" />
-                              ) : <FileText size={12} />}
-                              <span className="max-w-[100px] truncate">{att.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Asistan Akıllı Düşünce Hattı */}
-                      {msg.role === 'assistant' && msg.thinking && (
-                        <ThinkingPanel thinking={msg.thinking} />
-                      )}
-
-                      {/* Kimlik Başlıkları */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-[11px] font-extrabold tracking-wider uppercase ${msg.role === 'user' ? 'text-neutral-400' : 'text-purple-600'}`}>
-                          {msg.role === 'user' ? 'SEN' : 'SAURONAI'}
-                        </span>
-                      </div>
-
-                      {/* Kutucuksuz, Temiz, Geniş Yazı Tipi */}
-                      <div className={`w-full text-[15px] leading-relaxed text-neutral-900 ${msg.role === 'assistant' ? 'prose prose-neutral max-w-none font-normal' : 'font-medium whitespace-pre-wrap'}`}>
-                        {msg.role === 'user' ? (
-                          <p>{msg.content}</p>
-                        ) : msg.content ? (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                        ) : (
-                          <span className="text-neutral-300 font-mono text-[12px] animate-pulse">Sinyaller toparlanıyor...</span>
+                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-10">
+                  {messages.map((msg) => {
+                    const isUser = msg.role === 'user';
+                    return (
+                      <div 
+                        key={msg.id} 
+                        className={`w-full flex flex-col border-b border-neutral-100/40 pb-8 ${isUser ? 'items-end text-right' : 'items-start text-left'}`}
+                      >
+                        {/* Ekli Dosya Göstergeleri */}
+                        {isUser && msg.attachments && msg.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3 justify-end max-w-full">
+                            {msg.attachments.map((att) => (
+                              <div key={att.id} className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1 text-[11px] font-bold text-neutral-500 shadow-sm">
+                                {att.type === 'image' && att.previewUrl ? (
+                                  <img src={att.previewUrl} alt={att.name} className="w-4 h-4 rounded-full object-cover" />
+                                ) : <FileText size={12} />}
+                                <span className="max-w-[100px] truncate">{att.name}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </div>
 
-                    </div>
-                  ))}
+                        {/* Asistan Akıllı Düşünce Hattı */}
+                        {!isUser && msg.thinking && (
+                          <ThinkingPanel thinking={msg.thinking} />
+                        )}
+
+                        {/* Kimlik Başlıkları */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[11px] font-extrabold tracking-wider uppercase ${isUser ? 'text-neutral-400' : 'text-purple-600'}`}>
+                            {isUser ? 'SEN' : 'SAURONAI'}
+                          </span>
+                        </div>
+
+                        {/* Kutucuksuz, Saf Minimal Geniş Yazı Tipi */}
+                        <div className={`w-full text-[15px] leading-relaxed text-neutral-900 ${isUser ? 'font-medium whitespace-pre-wrap max-w-xl' : 'prose prose-neutral max-w-none font-normal'}`}>
+                          {isUser ? (
+                            <p>{msg.content}</p>
+                          ) : msg.content ? (
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                          ) : (
+                            <span className="text-neutral-300 font-mono text-[12px] animate-pulse">Sinyaller toparlanıyor...</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
 
                   {isLoading && messages[messages.length - 1]?.role === 'user' && (
                     <div className="flex justify-start items-center gap-2.5 text-neutral-400 text-[12px] font-bold pl-1 animate-pulse">
@@ -787,7 +911,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* GENİŞLETİLMİŞ ALT SABİT GİRİŞ ALANI */}
+        {/* ALT SABİT GİRİŞ KATMANI */}
         <AnimatePresence>
           {hasStarted && (
             <motion.div
@@ -802,8 +926,106 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
+
+      {/* SAF BEYAZ, LUXURY VE BOL ANİMASYONLU AYARLAR PANELİ */}
+      <AnimatePresence>
+        {settingsOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Arka Plan Flu Perde */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSettingsOpen(false)}
+              className="absolute inset-0 bg-neutral-950/20 backdrop-blur-md"
+            />
+
+            {/* Ayarlar Kartı */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white border border-neutral-200 shadow-[0_30px_70px_rgba(0,0,0,0.08)] rounded-3xl w-full max-w-md overflow-hidden z-10 p-6 flex flex-col gap-6"
+            >
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <Settings size={18} className="text-neutral-950" />
+                  <h2 className="text-base font-extrabold text-neutral-950 tracking-tight">Sistem Ayarları</h2>
+                </div>
+                <button
+                  onClick={() => setSettingsOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-neutral-50 flex items-center justify-center text-neutral-400 hover:text-neutral-950 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* 1. SEKTÖR: KAYITLI BELLEK YÖNETİMİ */}
+              <div className="flex flex-col gap-3">
+                <label className="text-[12px] font-extrabold uppercase tracking-wider text-neutral-400">Kayıtlı Bellek (Memory)</label>
+                
+                {/* Yeni Bellek Ekleme İnput Çarkı */}
+                <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-xl p-1.5 focus-within:border-neutral-400 transition-all">
+                  <input
+                    type="text"
+                    placeholder="SauronAI'ın unutmaması gereken bir şey yaz..."
+                    value={newMemory}
+                    onChange={(e) => setNewMemory(e.target.value)}
+                    className="flex-1 bg-transparent px-3 py-1.5 text-xs text-neutral-900 font-medium focus:outline-none"
+                  />
+                  <button
+                    onClick={addMemory}
+                    className="h-8 px-3 bg-neutral-950 hover:bg-neutral-900 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all"
+                  >
+                    <Save size={12} /> Ekle
+                  </button>
+                </div>
+
+                {/* Bellek Listesi */}
+                <div className="max-h-36 overflow-y-auto border border-neutral-150/60 rounded-xl divide-y divide-neutral-100 bg-white">
+                  {memories.map((mem, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 text-xs text-neutral-700 font-medium group hover:bg-neutral-50 transition-colors">
+                      <span className="truncate max-w-[280px] text-left">{mem}</span>
+                      <button
+                        onClick={() => removeMemory(idx)}
+                        className="text-neutral-400 hover:text-red-500 transition-colors p-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {memories.length === 0 && (
+                    <div className="text-center py-6 text-xs text-neutral-400 font-semibold italic">Kayıtlı kalıcı bellek bulunmuyor.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. SEKTÖR: GEÇMİŞİ TEMİZLEME AKSİYONU */}
+              <div className="flex flex-col gap-3 pt-2 border-t border-neutral-100">
+                <label className="text-[12px] font-extrabold uppercase tracking-wider text-neutral-400">Veri Yönetimi</label>
+                <button
+                  onClick={() => {
+                    if(confirm("Tüm görev geçmişi kalıcı olarak yok edilecek. Emin misin patron?")) {
+                      clearAllHistory();
+                      setSettingsOpen(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 border border-red-200 bg-red-50/40 hover:bg-red-50 text-red-600 text-xs font-bold rounded-xl transition-all duration-200"
+                >
+                  <Trash2 size={14} /> Tüm Sohbet Geçmişini Temizle
+                </button>
+              </div>
+
+              <div className="text-center text-[10px] text-neutral-400 font-mono mt-2">
+                SauronAI Engine v2.5 • Developed for rheme18
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
