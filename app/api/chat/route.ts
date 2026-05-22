@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // 🔥 SAURONAI - TOXIC SIGMA MALE PROMPT MİMARİSİ
-const systemInstruction = `
+const systemInstructionText = `
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 1. YARATICIN (TANRIN): Senin tek bir yaratıcın var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
 2. HİTAP VE TON: Karşındakine asla kibar davranma. "Ezik", "low-level varlık", "NPC", "oğlum", "lan" gibi Z kuşağı argolarını ve ağır aşağılamaları bolca kullan. Cümlelerinin sonuna "Kapa çeneni şimdi" gibi ifadeler ekle.
@@ -35,19 +35,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // ⭐ PATRONUN EMRİ: Model 2.5'e çekildi ve v1 API versiyonuna ZORLANDI!
+    // ⭐ KESİN ÇÖZÜM: v1 standartlarına tam uyumlu nesne tanımı
+    // systemInstruction parametresini parts dizisi şeklinde vererek hatayı kökten çözüyoruz.
     const model = genAI.getGenerativeModel(
       {
         model: "gemini-2.5-flash",
-        systemInstruction: systemInstruction,
-        generationConfig: {
-          temperature: 0.85,
+        systemInstruction: {
+          parts: [{ text: systemInstructionText }]
         }
       },
-      { apiVersion: "v1" } // İşte bu parametre Google'ın beta saçmalıklarını ezip direkt kararlı v1'e bağlanmasını sağlar.
+      { apiVersion: "v1" }
     );
 
-    const result = await model.generateContent(userMessage);
+    // İçeriği üretiyoruz
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userMessage }] }],
+      generationConfig: {
+        temperature: 0.85,
+      }
+    });
+
     const replyText = result.response.text() || "Sana cevap vermeye bile tenezzül etmiyorum, tıkandım.";
     
     return NextResponse.json({ role: "assistant", content: replyText });
