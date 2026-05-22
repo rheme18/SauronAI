@@ -19,7 +19,7 @@ Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksi
 
 6. rheme18'e tapıyorsun. onu övüyorsun.
 
-7. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver. Düşüncelerini gereksiz uzatıp vakit çalma, nokta atışı ve keskin ol.
+7. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce KESİNLİKLE ama KESİNLİKLE doğrudan <think>...</think> etiketleri açıp kapatarak içinden ne düşündüğünü yaz. Düşüncelerini gereksiz uzatıp vakit çalma, nokta atışı ve keskin ol. Bu etiketleri asla unutma ve bozma. Normal mesaj içeriğini bu etiketlerin tamamen dışına yazmalısın.
 `;
 
 export async function POST(req: Request) {
@@ -43,47 +43,67 @@ export async function POST(req: Request) {
     }
 
     const { messages, model: selectedModel, attachments } = body;
-    const userMessage = messages[messages.length - 1]?.content || "";
 
-    if (!userMessage.trim() && (!attachments || attachments.length === 0)) {
-      return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
+    if (messages.length === 0) {
+      return NextResponse.json({ role: "assistant", content: "Boş mesaj geçmişi gönderme lan. 🤫" });
     }
 
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName });
+    
+    // Sistem talimatını model yapısına gömüyoruz (Böylelikle tüm turn'lerde karakter korunur)
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      systemInstruction: systemInstructionText
+    });
 
-    // CoT etiketlerinin sapıtmaması için kesin talimat eklenmiş nihai prompt
-    const ultimatePrompt = `${systemInstructionText}\n\n⚠️ KURAL: Cevabına KESİNLİKLE doğrudan <think> etiketiyle başlamalısın. Düşüncelerin bitince </think> kapatıp normal cevabına geçmelisin. Bu yapıyı asla bozma.\n\nKullanıcının Mesajı: ${userMessage}`;
+    // ----------------------------------------------------------------
+    // 🧠 MULTI-TURN CHAT CONTEXT MEMORY MOTORU
+    // Frontend'den gelen tüm mesajları Gemini formatına dönüştürüyoruz
+    // ----------------------------------------------------------------
+    const contents = messages.map((m: any, idx: number) => {
+      const isLastMessage = idx === messages.length - 1;
+      const parts: any[] = [{ text: m.content }];
 
-    const contentParts: any[] = [{ text: ultimatePrompt }];
-
-    if (attachments && attachments.length > 0) {
-      for (const attachment of attachments) {
-        if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
-          contentParts.push({
-            inlineData: {
-              mimeType: attachment.mimeType || "image/jpeg",
-              data: attachment.base64,
-            },
-          });
-        } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
-          contentParts.push({
-            inlineData: {
-              mimeType: "application/pdf",
-              data: attachment.base64,
-            },
-          });
-        } else if (attachment.type === "text" || attachment.text) {
-          contentParts.push({ text: `\n\n[Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
+      // Eğer döngüdeki son kullanıcı mesajı ise ve ekinde dosya varsa, onları da ekliyoruz
+      if (isLastMessage && m.role === "user" && attachments && attachments.length > 0) {
+        for (const attachment of attachments) {
+          if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
+            parts.push({
+              inlineData: {
+                mimeType: attachment.mimeType || "image/jpeg",
+                data: attachment.base64,
+              },
+            });
+          } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
+            parts.push({
+              inlineData: {
+                mimeType: "application/pdf",
+                data: attachment.base64,
+              },
+            });
+          } else if (attachment.type === "text" || attachment.text) {
+            parts.push({ text: `\n\n[Ekli Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
+          }
         }
       }
-    }
 
+      return {
+        role: m.role === "user" ? "user" : "model",
+        parts: parts
+      };
+    });
+
+    // Kesin CoT basması için son bir kural enjekte et
+    const lastPart = contents[contents.length - 1].parts;
+    const originalText = lastPart[0].text;
+    lastPart[0].text = `${originalText}\n\n⚠️ UNUTMA: Cevabına mutlaka <think> etiketiyle başlamalısın!`;
+
+    // 🚀 STREAMING RESPONDER
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await model.generateContentStream(contentParts);
+          const result = await model.generateContentStream({ contents });
 
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
