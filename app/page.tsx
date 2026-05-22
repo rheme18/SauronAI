@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowUp, Lock, ShieldAlert, Plus, X, FileText, ImageIcon, Brain, ChevronDown, Menu, MessageSquare, Trash2, Settings, Save } from 'lucide-react';
+import { Sparkles, ArrowUp, Lock, ShieldAlert, Cpu, Plus, X, FileText, ImageIcon, Brain, ChevronDown, PanelLeftClose, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -24,12 +24,6 @@ interface Message {
   attachments?: Attachment[];
 }
 
-interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-}
-
 type ModelType = 'flash' | 'pro';
 
 const MODEL_LABELS: Record<ModelType, string> = {
@@ -37,69 +31,62 @@ const MODEL_LABELS: Record<ModelType, string> = {
   pro: 'Pro 2.5',
 };
 
-// ----------------------------------------------------------------
-// Favicon Hover Morph Animasyon Bileşeni (Açma/Kapama İkonuna Dönüşür)
-// ----------------------------------------------------------------
-function FaviconToggle({ isOpen, onClick }: { isOpen: boolean; onClick: () => void }) {
-  const [isHovered, setIsHovered] = useState(false);
+// Simulated Chat History
+interface ChatHistoryItem {
+  id: string;
+  title: string;
+}
+
+// Custom CodeBlock Component with Copy Button for Markdown
+function CodeBlock({ className, children }: { className?: string; children: React.ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const codeRef = useRef<HTMLSpanElement>(null);
+
+  const handleCopy = async () => {
+    if (codeRef.current) {
+      const text = codeRef.current.innerText;
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const match = /language-(\w+)/.exec(className || '');
+  const lang = match ? match[1] : 'code';
 
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-neutral-200/60 bg-transparent transition-all duration-200 relative overflow-hidden shrink-0"
-    >
-      <AnimatePresence mode="wait">
-        {isHovered ? (
-          <motion.div
-            key="menu-icon"
-            initial={{ scale: 0.6, opacity: 0, rotate: -90 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            exit={{ scale: 0.6, opacity: 0, rotate: 90 }}
-            transition={{ duration: 0.18 }}
-          >
-            <Menu size={18} className="text-neutral-800 stroke-[2.5]" />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="favicon-img"
-            initial={{ scale: 0.6, opacity: 0, rotate: 90 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            exit={{ scale: 0.6, opacity: 0, rotate: -90 }}
-            transition={{ duration: 0.18 }}
-            className="flex items-center justify-center"
-          >
-            <img 
-              src="/favicon.ico" 
-              alt="Favicon" 
-              className="w-5 h-5 object-contain" 
-              onError={(e) => {
-                // Eğer public dizininde favicon yoksa kırık görünmesin diye şık siyah bir nokta basar
-                (e.target as HTMLImageElement).style.display = 'none';
-              }} 
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </button>
+    <div className="relative my-4 rounded-xl border border-neutral-200 bg-neutral-900 text-neutral-100 font-mono text-xs overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-4 py-2 bg-neutral-950 text-neutral-400 border-b border-neutral-800 select-none">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{lang}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white transition-colors duration-150"
+        >
+          {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+          <span>{copied ? 'Kopyalandı!' : 'Kopyala'}</span>
+        </button>
+      </div>
+      <div className="p-4 overflow-x-auto whitespace-pre">
+        <span ref={codeRef} className={className}>
+          {children}
+        </span>
+      </div>
+    </div>
   );
 }
 
-// ----------------------------------------------------------------
-// Düşünce Zinciri (CoT) Paneli
-// ----------------------------------------------------------------
 function ThinkingPanel({ thinking }: { thinking: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
-    <div className="mb-4 w-full flex flex-col items-start">
+    <div className="mb-2 w-full">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 text-[12px] font-bold text-neutral-400 bg-neutral-50 border border-neutral-200/60 px-3 py-1.5 rounded-full hover:bg-neutral-100/80 hover:text-neutral-700 transition-all duration-200"
+        className="flex items-center gap-1.5 text-[11px] font-medium text-violet-500 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-xl hover:bg-violet-100 transition-colors duration-200"
       >
-        <Brain size={13} className="text-purple-500 animate-pulse" />
-        <span>SauronAI Düşünce Hattı</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.15 }}>
+        <Brain size={12} />
+        <span>Düşünce Zinciri</span>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown size={12} />
         </motion.span>
       </button>
@@ -109,10 +96,10 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden w-full"
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
           >
-            <div className="mt-2 text-[12px] text-neutral-500 bg-neutral-50/50 border border-neutral-200/40 border-l-2 border-l-purple-400 rounded-2xl p-4 leading-relaxed max-h-40 overflow-y-auto font-mono whitespace-pre-wrap text-left w-full">
+            <div className="mt-2 text-[11px] text-violet-700 bg-violet-50 border border-violet-100 rounded-xl p-3 leading-relaxed max-h-48 overflow-y-auto font-mono whitespace-pre-wrap">
               {thinking}
             </div>
           </motion.div>
@@ -122,245 +109,65 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
   );
 }
 
-// ----------------------------------------------------------------
-// Dosya Önizleme Çipi
-// ----------------------------------------------------------------
 function AttachmentChip({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
   return (
-    <div className="relative flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full p-1.5 pr-3 text-xs text-neutral-700 shadow-sm">
-      {att.type === 'image' && att.previewUrl ? (
-        <img src={att.previewUrl} alt={att.name} className="w-5 h-5 rounded-full object-cover" />
+    <div className="relative flex items-center gap-1.5 bg-neutral-100 border border-neutral-200 rounded-xl px-2.5 py-1.5 text-xs text-neutral-700 group">
+      {att.type === 'image' ? (
+        att.previewUrl ? (
+          <img src={att.previewUrl} alt={att.name} className="w-5 h-5 rounded object-cover" />
+        ) : (
+          <ImageIcon size={12} className="text-neutral-400" />
+        )
       ) : (
-        <FileText size={13} className="text-neutral-400" />
+        <FileText size={12} className="text-neutral-400" />
       )}
-      <span className="max-w-[120px] truncate font-medium text-[12px]">{att.name}</span>
-      <button onClick={onRemove} className="ml-1 text-neutral-400 hover:text-neutral-900 transition-colors">
-        <X size={12} />
+      <span className="max-w-[100px] truncate">{att.name}</span>
+      <button onClick={onRemove} className="ml-1 text-neutral-400 hover:text-red-500 transition-colors">
+        <X size={10} />
       </button>
     </div>
   );
 }
 
-// ----------------------------------------------------------------
-// Giriş Alanı Modülü (Yukarı Açılan İnput Menüleri)
-// ----------------------------------------------------------------
-interface InputBarProps {
-  input: string;
-  setInput: (v: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onPaste: (e: React.ClipboardEvent) => void;
-  isLoading: boolean;
-  placeholder: string;
-  attachments: Attachment[];
-  setAttachments: React.Dispatch<React.SetStateAction<Attachment[]>>;
-  attachMenuOpen: boolean;
-  setAttachMenuOpen: (v: boolean) => void;
-  model: ModelType;
-  setModel: (m: ModelType) => void;
-  modelMenuOpen: boolean;
-  setModelMenuOpen: (v: boolean) => void;
-  imageInputRef: React.RefObject<HTMLInputElement | null>;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  modelMenuRef: React.RefObject<HTMLDivElement | null>;
-  attachMenuRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function InputBar({
-  input, setInput, onSubmit, onPaste, isLoading, placeholder,
-  attachments, setAttachments, attachMenuOpen, setAttachMenuOpen,
-  model, setModel, modelMenuOpen, setModelMenuOpen,
-  imageInputRef, fileInputRef, modelMenuRef, attachMenuRef
-}: InputBarProps) {
-  return (
-    <form
-      onSubmit={onSubmit}
-      className="w-full bg-white border border-neutral-200 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-full focus-within:border-neutral-400 focus-within:shadow-[0_14px_45px_rgba(0,0,0,0.05)] transition-all duration-300"
-    >
-      {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-5 pt-4">
-          {attachments.map((att) => (
-            <AttachmentChip
-              key={att.id}
-              att={att}
-              onRemove={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center p-3">
-        <div className="relative" ref={attachMenuRef}>
-          <button
-            type="button"
-            onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-            className="w-11 h-11 flex items-center justify-center text-neutral-400 hover:text-neutral-800 hover:bg-neutral-50 rounded-full transition-all duration-200 shrink-0"
-          >
-            <Plus size={20} className={`transition-transform duration-200 ${attachMenuOpen ? 'rotate-45' : ''}`} />
-          </button>
-
-          <AnimatePresence>
-            {attachMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="absolute bottom-full mb-3 left-0 bg-white border border-neutral-200 shadow-xl p-2 rounded-2xl min-w-[160px] z-50"
-              >
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
-                >
-                  <ImageIcon size={15} className="text-neutral-400" />
-                  Resim Ekle
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
-                >
-                  <FileText size={15} className="text-neutral-400" />
-                  Belge Ekle
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onPaste={onPaste}
-          disabled={isLoading}
-          className="flex-1 bg-transparent px-4 py-2.5 text-[15px] text-neutral-900 focus:outline-none placeholder:text-neutral-400 font-medium"
-        />
-
-        <div className="relative mr-2" ref={modelMenuRef}>
-          <button
-            type="button"
-            onClick={() => setModelMenuOpen(!modelMenuOpen)}
-            className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-full hover:border-neutral-300 hover:text-neutral-800 transition-all duration-200 shrink-0"
-          >
-            {MODEL_LABELS[model]}
-            <motion.span animate={{ rotate: modelMenuOpen ? 180 : 0 }} transition={{ duration: 0.15 }}>
-              <ChevronDown size={12} />
-            </motion.span>
-          </button>
-
-          <AnimatePresence>
-            {modelMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="absolute bottom-full mb-3 right-0 bg-white border border-neutral-200 shadow-xl p-2 rounded-2xl min-w-[130px] z-50"
-              >
-                {(Object.keys(MODEL_LABELS) as ModelType[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => { setModel(m); setModelMenuOpen(false); }}
-                    className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold rounded-xl transition-colors ${model === m ? 'bg-neutral-950 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                  >
-                    {MODEL_LABELS[m]}
-                    {model === m && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-2" />}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <button
-          type="submit"
-          disabled={(!input.trim() && attachments.length === 0) || isLoading}
-          className="w-11 h-11 bg-neutral-950 hover:bg-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm"
-        >
-          <ArrowUp size={18} className="stroke-[2.5]" />
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// ----------------------------------------------------------------
-// Ana Sistem Paneli
-// ----------------------------------------------------------------
 export default function Home() {
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authError, setAuthError] = useState(false);
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string>('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // Kayıtlı Bellek Sistemi
-  const [memories, setMemories] = useState<string[]>([]);
-  const [newMemory, setNewMemory] = useState('');
-
   const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [hasStarted, setHasStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<ModelType>('flash');
 
+  const [model, setModel] = useState<ModelType>('flash');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Simulated static chat logs
+  const [chatHistory] = useState<ChatHistoryItem[]>([
+    { id: '1', title: 'LGS Matematik Analizi' },
+    { id: '2', title: 'NextJS Sinyal Problemi' },
+    { id: '3', title: 'Sigma Algoritmaları' },
+  ]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   
+  // Outside click handles refs
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
-
-  const currentConversation = conversations.find(c => c.id === activeId);
-  const messages = currentConversation ? currentConversation.messages : [];
-  const hasStarted = messages.length > 0;
-
-  // Geçmişi ve Bellekleri Lokal Depodan Çekme Döngüsü
-  useEffect(() => {
-    const saved = localStorage.getItem('sauron_chats');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) {
-          setConversations(parsed);
-          setActiveId(parsed[0].id);
-        }
-      } catch (e) { /* Pas */ }
-    }
-
-    const savedMemories = localStorage.getItem('sauron_memories');
-    if (savedMemories) {
-      try {
-        setMemories(JSON.parse(savedMemories));
-      } catch (e) { /* Pas */ }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem('sauron_chats', JSON.stringify(conversations));
-    } else {
-      localStorage.removeItem('sauron_chats');
-    }
-  }, [conversations]);
-
-  useEffect(() => {
-    localStorage.setItem('sauron_memories', JSON.stringify(memories));
-  }, [memories]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Sayfada herhangi bir yere basıldığında otomatik menü kapatma motoru
+  // Unified click outside logic for all dynamic inputs/menus
   useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (modelMenuRef.current && !modelMenuRef.current.contains(target)) {
         setModelMenuOpen(false);
@@ -369,8 +176,8 @@ export default function Home() {
         setAttachMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleAuthSubmit = (e: React.FormEvent) => {
@@ -382,38 +189,6 @@ export default function Home() {
       setAuthError(true);
       setPassword('');
     }
-  };
-
-  const startNewChat = () => {
-    const newId = Date.now().toString();
-    const newChat: Conversation = { id: newId, title: 'Yeni Karanlık Görev', messages: [] };
-    setConversations(prev => [newChat, ...prev]);
-    setActiveId(newId);
-  };
-
-  const deleteChat = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const filtered = conversations.filter(c => c.id !== id);
-    setConversations(filtered);
-    if (activeId === id) {
-      setActiveId(filtered.length > 0 ? filtered[0].id : '');
-    }
-  };
-
-  const clearAllHistory = () => {
-    setConversations([]);
-    setActiveId('');
-    localStorage.removeItem('sauron_chats');
-  };
-
-  const addMemory = () => {
-    if (!newMemory.trim()) return;
-    setMemories(prev => [...prev, newMemory.trim()]);
-    setNewMemory('');
-  };
-
-  const removeMemory = (index:彻) => {
-    setMemories(prev => prev.filter((_, i) => i !== index));
   };
 
   const readFileAsBase64 = (file: File): Promise<string> =>
@@ -432,99 +207,48 @@ export default function Home() {
       r.readAsText(file);
     });
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file') => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'file') => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
 
-    const newAtts: Attachment[] = [];
-    for (const file of files) {
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf';
-
-      let base64: string | undefined;
-      let text: string | undefined;
-      let previewUrl: string | undefined;
-
-      if (isImage || isPdf) {
-        base64 = await readFileAsBase64(file);
-        if (isImage) previewUrl = URL.createObjectURL(file);
-      } else {
-        text = await readFileAsText(file);
-      }
-
-      newAtts.push({
-        id: Date.now().toString() + Math.random(),
-        name: file.name,
-        type: isImage ? 'image' : isPdf ? 'pdf' : 'text',
-        mimeType: file.type || 'application/octet-stream',
-        base64,
-        text,
-        previewUrl,
-      });
-    }
-
-    setAttachments((prev) => [...prev, ...newAtts]);
-    setAttachMenuOpen(false);
-    e.target.value = '';
-  }, []);
-
-  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    const newAtts: Attachment[] = [];
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
-        if (!file) continue;
-        const base64 = await readFileAsBase64(file);
-        const previewUrl = URL.createObjectURL(file);
-        newAtts.push({
-          id: Date.now().toString() + Math.random(),
-          name: file.name || `yapistirilan-resim-${Date.now()}.png`,
-          type: 'image',
-          mimeType: file.type,
-          base64,
-          previewUrl
-        });
-      } else if (items[i].kind === 'file') {
-        const file = items[i].getAsFile();
-        if (!file) continue;
+      const newAtts: Attachment[] = [];
+      for (const file of files) {
+        const isImage = file.type.startsWith('image/');
         const isPdf = file.type === 'application/pdf';
+
         let base64: string | undefined;
         let text: string | undefined;
-        if (isPdf) {
+        let previewUrl: string | undefined;
+
+        if (isImage || isPdf) {
           base64 = await readFileAsBase64(file);
+          if (isImage) previewUrl = URL.createObjectURL(file);
         } else {
           text = await readFileAsText(file);
         }
+
         newAtts.push({
           id: Date.now().toString() + Math.random(),
           name: file.name,
-          type: isPdf ? 'pdf' : 'text',
-          mimeType: file.type,
+          type: isImage ? 'image' : isPdf ? 'pdf' : 'text',
+          mimeType: file.type || 'application/octet-stream',
           base64,
-          text
+          text,
+          previewUrl,
         });
       }
-    }
 
-    if (newAtts.length > 0) {
       setAttachments((prev) => [...prev, ...newAtts]);
-    }
-  }, []);
+      setAttachMenuOpen(false);
+      e.target.value = '';
+    },
+    []
+  );
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
-
-    let currentActiveId = activeId;
-    if (!currentActiveId) {
-      currentActiveId = Date.now().toString();
-      const initialChat: Conversation = { id: currentActiveId, title: input.trim().slice(0, 24) || 'Yeni Görev', messages: [] };
-      setConversations([initialChat]);
-      setActiveId(currentActiveId);
-    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -534,35 +258,26 @@ export default function Home() {
     };
 
     const currentAttachments = [...attachments];
-    const updatedTitle = messages.length === 0 ? input.trim().slice(0, 24) : undefined;
-
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setAttachments([]);
+    setHasStarted(true);
     setIsLoading(true);
 
     const assistantId = (Date.now() + 1).toString();
-    let currentHistory: Message[] = [];
-    
-    setConversations(prev => prev.map(c => {
-      if (c.id === currentActiveId) {
-        currentHistory = [...c.messages, userMessage];
-        return {
-          ...c,
-          title: updatedTitle || c.title,
-          messages: [...currentHistory, { id: assistantId, role: 'assistant', content: '', thinking: undefined }]
-        };
-      }
-      return c;
-    }));
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: 'assistant', content: '', thinking: undefined },
+    ]);
 
     try {
+      const chatHistoryData = [...messages, userMessage];
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: currentHistory, 
+          messages: chatHistoryData,
           model,
-          memories, // Kayıtlı bellek havuzu API hattına gönderiliyor
           attachments: currentAttachments.map((a) => ({
             name: a.name,
             type: a.type,
@@ -573,129 +288,240 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok || !response.body) throw new Error('Yayın hattı koptu.');
+      if (!response.ok || !response.body) {
+        throw new Error('Stream başlatılamadı');
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      
-      let fullBuffer = ''; 
-      let rawAccumulatedText = '';
+      let fullText = '';
+      let thinkingText = '';
+      let streamBuffer = ''; // Anti-freeze stream chunk safe buffer
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        fullBuffer += decoder.decode(value, { stream: true });
-        const parts = fullBuffer.split('\n');
-        fullBuffer = parts.pop() || '';
+        streamBuffer += decoder.decode(value, { stream: true });
+        const lines = streamBuffer.split('\n');
+        streamBuffer = lines.pop() || ''; // Keep incomplete JSON fragment in buffer
 
-        for (const line of parts) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data: ')) continue;
+          
+          const jsonStr = trimmed.slice(6).trim();
           if (!jsonStr) continue;
-
+          
           try {
             const parsed = JSON.parse(jsonStr);
-            if (parsed.done) {
-              setIsLoading(false);
-              break;
-            }
+            if (parsed.done) break;
             if (parsed.error) {
-              rawAccumulatedText += `\n⚠️ Hata: ${parsed.error}`;
+              fullText += `⚠️ Hata: ${parsed.error}`;
               break;
             }
             if (parsed.delta) {
-              rawAccumulatedText += parsed.delta;
+              fullText += parsed.delta;
 
-              let displayCleanText = rawAccumulatedText;
-              let extractedThinking = '';
+              let displayText = fullText;
+              const thinkStart = fullText.indexOf('<think>');
+              const thinkEnd = fullText.indexOf('</think>');
 
-              const thinkBlockMatch = rawAccumulatedText.match(/<think>([\s\S]*?)<\/think>/);
-              const unclosedThinkMatch = rawAccumulatedText.match(/<think>([\s\S]*?)$/);
-
-              if (thinkBlockMatch) {
-                extractedThinking = thinkBlockMatch[1];
-                displayCleanText = rawAccumulatedText.replace(/<think>([\s\S]*?)<\/think>/, '');
-              } else if (unclosedThinkMatch) {
-                extractedThinking = unclosedThinkMatch[1];
-                displayCleanText = rawAccumulatedText.replace(/<think>([\s\S]*?)$/, '');
+              if (thinkStart !== -1 && thinkEnd !== -1) {
+                thinkingText = fullText.slice(thinkStart + 7, thinkEnd);
+                displayText = fullText.slice(0, thinkStart) + fullText.slice(thinkEnd + 8);
+              } else if (thinkStart !== -1) {
+                thinkingText = fullText.slice(thinkStart + 7);
+                displayText = fullText.slice(0, thinkStart);
               }
 
-              setConversations(prev => prev.map(c => {
-                if (c.id === currentActiveId) {
-                  return {
-                    ...c,
-                    messages: c.messages.map(m => m.id === assistantId ? {
-                      ...m,
-                      content: displayCleanText,
-                      thinking: extractedThinking || undefined
-                    } : m)
-                  };
-                }
-                return c;
-              }));
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: displayText.trim(), thinking: thinkingText || undefined }
+                    : m
+                )
+              );
             }
-          } catch { /* Paket parçalanma sekansını pas geç */ }
+          } catch {
+            // Safe fallback logic for internal stream cuts
+          }
         }
       }
-      setIsLoading(false);
-
     } catch (err) {
-      setConversations(prev => prev.map(c => {
-        if (c.id === currentActiveId) {
-          return {
-            ...c,
-            messages: c.messages.map(m => m.id === assistantId ? { ...m, content: '🔴 Veri kanalları tıkandı patron, bağlantıyı yokla.' } : m)
-          };
-        }
-        return c;
-      }));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: '🔴 Sunucuyla bağlantı kurulurken kritik bir hata oluştu.' }
+            : m
+        )
+      );
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const inputBarProps = {
-    input, setInput, onSubmit: handleSendMessage, onPaste: handlePaste, isLoading,
-    placeholder: hasStarted ? "Sohbete devam et, patron..." : "SauronAI'a emret...",
-    attachments, setAttachments, attachMenuOpen, setAttachMenuOpen,
-    model, setModel, modelMenuOpen, setModelMenuOpen,
-    imageInputRef, fileInputRef, modelMenuRef, attachMenuRef
-  };
+  const InputBar = ({ placeholder, className = '' }: { placeholder: string; className?: string }) => (
+    <form
+      onSubmit={handleSendMessage}
+      className={`w-full bg-white border border-neutral-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.02)] focus-within:border-neutral-400 transition-all duration-300 ${className}`}
+    >
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+          {attachments.map((att) => (
+            <AttachmentChip
+              key={att.id}
+              att={att}
+              onRemove={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center p-2">
+        <div className="relative" ref={attachMenuRef}>
+          <button
+            type="button"
+            onClick={() => setAttachMenuOpen((v) => !v)}
+            className="w-9 h-9 flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-xl transition-all duration-200 shrink-0"
+          >
+            <Plus size={16} />
+          </button>
+
+          <AnimatePresence>
+            {attachMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-12 left-0 bg-white border border-neutral-200 rounded-2xl shadow-lg p-1.5 min-w-[150px] z-50"
+              >
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
+                >
+                  <ImageIcon size={14} className="text-neutral-400" />
+                  Resim Yükle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
+                >
+                  <FileText size={14} className="text-neutral-400" />
+                  Dosya Yükle
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={isLoading}
+          className="flex-1 bg-transparent px-3 py-2.5 text-sm text-neutral-900 focus:outline-none placeholder:text-neutral-400"
+        />
+
+        <div className="relative mr-1" ref={modelMenuRef}>
+          <button
+            type="button"
+            onClick={() => setModelMenuOpen((v) => !v)}
+            className="flex items-center gap-1 h-8 px-2.5 text-[11px] font-medium text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-xl hover:border-neutral-300 hover:text-neutral-700 transition-all duration-200 shrink-0"
+          >
+            {MODEL_LABELS[model]}
+            <motion.span animate={{ rotate: modelMenuOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+              <ChevronDown size={10} />
+            </motion.span>
+          </button>
+
+          <AnimatePresence>
+            {modelMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-10 right-0 bg-white border border-neutral-200 rounded-2xl shadow-lg p-1.5 min-w-[120px] z-50"
+              >
+                {(Object.keys(MODEL_LABELS) as ModelType[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => { setModel(m); setModelMenuOpen(false); }}
+                    className={`flex items-center justify-between w-full px-3 py-2 text-xs rounded-xl transition-colors ${model === m ? 'bg-neutral-950 text-white' : 'text-neutral-700 hover:bg-neutral-50'}`}
+                  >
+                    {MODEL_LABELS[m]}
+                    {model === m && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-2" />}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <button
+          type="submit"
+          disabled={(!input.trim() && attachments.length === 0) || isLoading}
+          className="w-9 h-9 bg-neutral-950 hover:bg-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 text-white rounded-xl flex items-center justify-center transition-all duration-200 shrink-0"
+        >
+          <ArrowUp size={14} className="stroke-[2.5]" />
+        </button>
+      </div>
+    </form>
+  );
 
   if (!isAuthorized) {
     return (
-      <div className="relative min-h-screen w-full bg-white flex items-center justify-center p-4 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-neutral-50 blur-[140px] pointer-events-none" />
+      <div className="relative min-h-screen w-full bg-white bg-grid flex items-center justify-center p-4">
+        <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-neutral-100 blur-[120px] pointer-events-none" />
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="w-full max-w-sm bg-white border border-neutral-200 rounded-3xl p-8 shadow-[0_25px_60px_rgba(0,0,0,0.02)] z-10"
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-md bg-white border border-neutral-200/80 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.03)] backdrop-blur-md z-10"
         >
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-14 h-14 bg-neutral-950 rounded-2xl flex items-center justify-center text-white mb-4 shadow-sm">
-              <Lock size={20} />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-neutral-950">SauronAI Terminal</h1>
-            <p className="text-xs text-neutral-400 mt-1">Sistemi ateşlemek için şifreyi gir.</p>
+          <div className="flex flex-col items-center text-center mb-8">
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 3 }}
+              className="w-14 h-14 bg-neutral-900 rounded-2xl flex items-center justify-center text-white mb-4 shadow-md"
+            >
+              <Lock size={22} />
+            </motion.div>
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-950 mb-1">SauronAI Güvenlik</h1>
+            <p className="text-xs text-neutral-400">Devam etmek için yetkili erişim şifresini girin.</p>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="space-y-3">
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
             <input
               type="password"
-              placeholder="••••••••"
+              placeholder="Şifre"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 rounded-xl text-center font-mono text-sm tracking-widest text-neutral-900 focus:outline-none focus:border-neutral-950 transition-all duration-200"
+              className="w-full px-5 py-4 bg-neutral-50 border border-neutral-200 rounded-2xl text-center font-medium tracking-widest text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950 focus:bg-white transition-all duration-300 placeholder:tracking-normal placeholder:text-neutral-400"
             />
             <AnimatePresence>
               {authError && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-[11px] font-bold text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
-                  <ShieldAlert size={14} /> <span>Şifre patladı patron! Sızmaya çalışma. 💀</span>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-2 text-xs font-medium text-red-600 bg-red-50 p-3 rounded-xl border border-red-100"
+                >
+                  <ShieldAlert size={14} /> <span>Şifre hatalı, patron!</span>
                 </motion.div>
               )}
             </AnimatePresence>
-            <button type="submit" className="w-full py-3 bg-neutral-950 hover:bg-neutral-900 text-white text-xs font-semibold rounded-xl transition-all shadow-sm">
-              Giriş Yap
+            <button
+              type="submit"
+              className="w-full py-4 bg-neutral-950 hover:bg-neutral-900 text-white text-sm font-medium rounded-2xl transition-colors duration-200"
+            >
+              Sistemi Başlat
             </button>
           </form>
         </motion.div>
@@ -704,328 +530,183 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen w-full bg-white flex overflow-hidden selection:bg-neutral-100">
+    <div className="relative min-h-screen w-full bg-white bg-grid flex text-neutral-950 overflow-hidden">
       <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
       <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,.js,.ts,.py,.json,.html,.css" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
 
-      {/* YAN SIDEBAR KONTROL MERKEZİ */}
-      <div className="h-screen flex shrink-0 z-40 relative">
-        <AnimatePresence initial={false} mode="wait">
-          {sidebarOpen ? (
-            /* GENİŞ AÇIK SIDEBAR */
-            <motion.aside
-              key="full-sidebar"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 300, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-              className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col justify-between overflow-hidden"
-            >
-              <div className="flex flex-col flex-1 min-h-0">
-                {/* Sol Üst Başlık ve İkon */}
-                <div className="p-5 pt-6 flex flex-col gap-4 border-b border-neutral-200/30">
-                  <div className="flex items-center gap-3">
-                    <FaviconToggle isOpen={sidebarOpen} onClick={() => setSidebarOpen(false)} />
-                    <span className="text-[19px] font-extrabold tracking-tight text-neutral-950">SauronAI</span>
-                  </div>
-                  <button
-                    onClick={startNewChat}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 hover:border-neutral-300 rounded-full text-xs font-bold text-neutral-800 shadow-sm transition-all duration-200"
-                  >
-                    <Plus size={14} /> Yeni Görev Başlat
-                  </button>
-                </div>
-
-                {/* Görev Geçmişi Listesi */}
-                <div className="flex-1 overflow-y-auto p-3 space-y-1">
-                  {conversations.map((chat) => {
-                    const isSelected = chat.id === activeId;
-                    return (
-                      <div
-                        key={chat.id}
-                        onClick={() => setActiveId(chat.id)}
-                        className={`group flex items-center justify-between px-3.5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? 'bg-neutral-200/60 text-neutral-950 font-bold' : 'text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-900'}`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <MessageSquare size={15} className={isSelected ? 'text-neutral-950' : 'text-neutral-400'} />
-                          <span className="text-[13px] truncate max-w-[180px]">{chat.title}</span>
-                        </div>
-                        <button
-                          onClick={(e) => deleteChat(chat.id, e)}
-                          className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 p-1 transition-all"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {conversations.length === 0 && (
-                    <div className="text-center py-8 text-[12px] text-neutral-400 font-semibold">Kayıtlı görev yok.</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Alt Ayarlar Butonu */}
-              <div className="p-4 border-t border-neutral-200/30">
-                <button
-                  onClick={() => setSettingsOpen(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-neutral-100 rounded-2xl text-[13px] font-bold text-neutral-600 hover:text-neutral-950 transition-all duration-200"
-                >
-                  <Settings size={18} />
-                  <span>Ayarlar</span>
-                </button>
-              </div>
-            </motion.aside>
-          ) : (
-            /* GEMINI TARZI İNCE KAPALI SIDEBAR SÜTUNU */
-            <motion.div
-              key="thin-sidebar"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 68, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-              className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col justify-between items-center py-6 overflow-hidden"
-            >
-              <div className="flex flex-col items-center gap-6">
-                <FaviconToggle isOpen={sidebarOpen} onClick={() => setSidebarOpen(true)} />
-                <button
-                  onClick={startNewChat}
-                  className="w-10 h-10 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-700 hover:border-neutral-400 shadow-sm transition-all"
-                  title="Yeni Görev Başlat"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="w-11 h-11 flex items-center justify-center rounded-2xl text-neutral-400 hover:text-neutral-950 hover:bg-neutral-100 transition-all duration-200"
-                title="Ayarlar"
-              >
-                <Settings size={20} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ANA İÇERİK AKIŞI */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative bg-white">
-        
-        {/* ÜST HEADER */}
-        <header className="absolute top-0 left-0 right-0 h-16 bg-white/60 backdrop-blur-md border-b border-neutral-100/80 z-30 px-5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {!sidebarOpen && (
-              <span className="text-[17px] font-extrabold tracking-tight text-neutral-950">SauronAI</span>
-            )}
+      {/* --- SIDEBAR --- */}
+      <motion.aside
+        animate={{ width: isSidebarOpen ? 256 : 64 }}
+        transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+        className={`h-screen flex flex-col shrink-0 select-none bg-white transition-all duration-300 ${
+          isSidebarOpen ? 'border-r border-neutral-100 p-4' : 'border-none items-center py-4 px-2'
+        }`}
+      >
+        {/* Sidebar Header / Favicon Zone */}
+        <div className={`flex items-center w-full mb-6 ${isSidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          <div 
+            onClick={() => !isSidebarOpen && setIsSidebarOpen(true)}
+            className={`flex items-center gap-2.5 ${!isSidebarOpen ? 'cursor-pointer hover:scale-105 active:scale-95 transition-transform' : ''}`}
+          >
+            {/* Symmetrical Round Favicon.ico simulation */}
+            <div className="w-8 h-8 rounded-full bg-neutral-950 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-neutral-400">
+              S
+            </div>
+            {isSidebarOpen && <span className="font-bold text-sm tracking-tight text-neutral-950 select-none">SauronAI</span>}
           </div>
-          
+          {isSidebarOpen && (
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 rounded-lg transition-colors"
+            >
+              <PanelLeftClose size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* Action button */}
+        <button
+          onClick={() => { setMessages([]); setHasStarted(false); }}
+          className={`flex items-center justify-center bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/60 rounded-xl transition-all p-2.5 text-neutral-700 mb-4 font-medium text-xs ${
+            isSidebarOpen ? 'w-full gap-2 px-3' : 'w-10 h-10'
+          }`}
+        >
+          <Plus size={14} />
+          {isSidebarOpen && <span>Yeni Sohbet</span>}
+        </button>
+
+        {/* Chat Log Lists */}
+        <div className="flex-1 w-full space-y-1 overflow-y-auto">
+          {isSidebarOpen ? (
+            chatHistory.map((chat) => (
+              <div
+                key={chat.id}
+                className="w-full px-3 py-2.5 text-left text-xs text-neutral-600 hover:text-neutral-950 hover:bg-neutral-50 rounded-xl cursor-pointer truncate transition-colors"
+              >
+                {/* No left icons when open */}
+                {chat.title}
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center gap-3 pt-2">
+              {chatHistory.map((chat) => (
+                <div 
+                  key={chat.id} 
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="w-8 h-8 rounded-lg bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/40 flex items-center justify-center text-[10px] text-neutral-500 font-bold cursor-pointer transition-colors"
+                >
+                  {chat.title[0]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.aside>
+
+      {/* --- MAIN INTERFACE AREA --- */}
+      <div className="flex-1 h-screen flex flex-col relative overflow-hidden bg-white">
+        
+        {/* Header content top strip */}
+        <header className="h-16 border-b border-neutral-100/80 px-6 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md z-10">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-md border border-neutral-200/40">{MODEL_LABELS[model]}</span>
-            <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+            {!isSidebarOpen && (
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="w-7 h-7 bg-neutral-950 rounded-lg flex items-center justify-center text-white hover:bg-neutral-900 transition-colors mr-1"
+              >
+                <Cpu size={13} />
+              </button>
+            )}
+            <span className="text-xs font-semibold text-neutral-400">Çalışma Alanı</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-medium text-neutral-400 bg-neutral-50 border border-neutral-200/50 px-2.5 py-1 rounded-lg">{MODEL_LABELS[model]}</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Çevrimiçi
             </span>
           </div>
         </header>
 
-        {/* MESAJ FORMATI (KUTUCUKSUZ - SEN SAĞDA, AI SOLDA) */}
-        <div className="flex-1 overflow-y-auto pt-24 pb-40 px-5 flex flex-col items-center">
-          <div className="w-full max-w-2xl flex flex-col">
-            <AnimatePresence mode="wait">
-              {!hasStarted ? (
-                <motion.div key="landing" exit={{ opacity: 0, y: -20 }} className="w-full flex flex-col items-center justify-center text-center py-24">
-                  <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-16 h-16 bg-neutral-50 border border-neutral-200 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
-                    <Sparkles size={24} className="text-neutral-950" />
-                  </motion.div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-neutral-950 mb-3">Zekanın Karanlık Tarafı.</h1>
-                  <p className="text-[13px] text-neutral-400 max-w-xs mb-10 leading-relaxed font-medium">
-                    SauronAI mutlak stratejik deha ve eşsiz karizmayla emrinde. Komut ver, patron.
-                  </p>
-                  <div className="w-full max-w-2xl">
-                    <InputBar {...inputBarProps} />
-                  </div>
+        {/* Inner Chat Feed */}
+        <div className="flex-1 overflow-y-auto w-full max-w-3xl mx-auto px-4 pt-8 pb-36">
+          <AnimatePresence mode="wait">
+            {!hasStarted ? (
+              <motion.div key="landing" exit={{ opacity: 0, y: -30 }} className="w-full flex flex-col items-center justify-center text-center py-20">
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-14 h-14 bg-neutral-50 border border-neutral-200 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                  <Sparkles size={24} className="text-neutral-950 stroke-[1.5]" />
                 </motion.div>
-              ) : (
-                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-10">
-                  {messages.map((msg) => {
-                    const isUser = msg.role === 'user';
-                    return (
-                      <div 
-                        key={msg.id} 
-                        className={`w-full flex flex-col border-b border-neutral-100/40 pb-8 ${isUser ? 'items-end text-right' : 'items-start text-left'}`}
-                      >
-                        {/* Ekli Dosya Göstergeleri */}
-                        {isUser && msg.attachments && msg.attachments.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-3 justify-end max-w-full">
-                            {msg.attachments.map((att) => (
-                              <div key={att.id} className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1 text-[11px] font-bold text-neutral-500 shadow-sm">
-                                {att.type === 'image' && att.previewUrl ? (
-                                  <img src={att.previewUrl} alt={att.name} className="w-4 h-4 rounded-full object-cover" />
-                                ) : <FileText size={12} />}
-                                <span className="max-w-[100px] truncate">{att.name}</span>
-                              </div>
-                            ))}
+                <h1 className="text-3xl font-bold tracking-tight text-neutral-950 mb-2">Dalmaya Hazır Mısın?</h1>
+                <p className="text-xs text-neutral-400 max-w-xs mb-8 font-light">SauronAI mutlak stratejik deha ile emrinde. Gelişmiş bellek algoritmaları aktiftir.</p>
+                <div className="w-full max-w-xl"><InputBar placeholder="SauronAI'a bir görev ver..." /></div>
+              </motion.div>
+            ) : (
+              <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-6">
+                {messages.map((msg) => (
+                  <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex w-full flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2 justify-end max-w-[88%]">
+                        {msg.attachments.map((att) => (
+                          <div key={att.id} className="flex items-center gap-1.5 bg-neutral-100 border border-neutral-200 rounded-xl px-2.5 py-1.5 text-xs text-neutral-600">
+                            {att.type === 'image' && att.previewUrl ? <img src={att.previewUrl} alt={att.name} className="w-5 h-5 rounded object-cover" /> : <FileText size={12} />}
+                            <span className="max-w-[100px] truncate">{att.name}</span>
                           </div>
-                        )}
-
-                        {/* Asistan Akıllı Düşünce Hattı */}
-                        {!isUser && msg.thinking && (
-                          <ThinkingPanel thinking={msg.thinking} />
-                        )}
-
-                        {/* Kimlik Başlıkları */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-[11px] font-extrabold tracking-wider uppercase ${isUser ? 'text-neutral-400' : 'text-purple-600'}`}>
-                            {isUser ? 'SEN' : 'SAURONAI'}
-                          </span>
-                        </div>
-
-                        {/* Kutucuksuz, Saf Minimal Geniş Yazı Tipi */}
-                        <div className={`w-full text-[15px] leading-relaxed text-neutral-900 ${isUser ? 'font-medium whitespace-pre-wrap max-w-xl' : 'prose prose-neutral max-w-none font-normal'}`}>
-                          {isUser ? (
-                            <p>{msg.content}</p>
-                          ) : msg.content ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                          ) : (
-                            <span className="text-neutral-300 font-mono text-[12px] animate-pulse">Sinyaller toparlanıyor...</span>
-                          )}
-                        </div>
+                        ))}
                       </div>
-                    );
-                  })}
+                    )}
 
-                  {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                    <div className="flex justify-start items-center gap-2.5 text-neutral-400 text-[12px] font-bold pl-1 animate-pulse">
-                      <div className="flex gap-0.5">
-                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    {msg.role === 'assistant' && msg.thinking && (
+                      <div className="max-w-[88%]"><ThinkingPanel thinking={msg.thinking} /></div>
+                    )}
+
+                    {(msg.content || msg.role === 'assistant') && (
+                      <div className={`max-w-[88%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed ${
+                        msg.role === 'user' ? 'bg-neutral-950 text-white rounded-tr-none shadow-sm' : 'bg-neutral-50 text-neutral-900 border border-neutral-100 rounded-tl-none prose prose-sm max-w-none'
+                      }`}>
+                        {msg.role === 'user' ? (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        ) : msg.content ? (
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({ className, children }) {
+                                return <CodeBlock className={className}>{children}</CodeBlock>;
+                              }
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <span className="text-neutral-400 text-xs italic">yazıyor...</span>
+                        )}
                       </div>
-                      <span className="font-mono">SauronAI analiz ediyor...</span>
+                    )}
+                  </motion.div>
+                ))}
+
+                {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start items-center gap-2.5 text-neutral-400 text-xs font-medium p-2">
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-neutral-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-neutral-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    <span>SauronAI analiz ediyor...</span>
+                  </motion.div>
+                )}
+                <div ref={messagesEndRef} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* ALT SABİT GİRİŞ KATMANI */}
+        {/* Stick Input Footer Bar */}
         <AnimatePresence>
           {hasStarted && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-5 z-20"
-            >
-              <div className="w-full max-w-2xl mx-auto">
-                <InputBar {...inputBarProps} />
-              </div>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 px-4 z-20">
+              <div className="w-full max-w-xl mx-auto"><InputBar placeholder="Sohbete devam et..." /></div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      {/* SAF BEYAZ, LUXURY VE BOL ANİMASYONLU AYARLAR PANELİ */}
-      <AnimatePresence>
-        {settingsOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Arka Plan Flu Perde */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSettingsOpen(false)}
-              className="absolute inset-0 bg-neutral-950/20 backdrop-blur-md"
-            />
-
-            {/* Ayarlar Kartı */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ type: 'spring', duration: 0.4 }}
-              className="bg-white border border-neutral-200 shadow-[0_30px_70px_rgba(0,0,0,0.08)] rounded-3xl w-full max-w-md overflow-hidden z-10 p-6 flex flex-col gap-6"
-            >
-              <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <Settings size={18} className="text-neutral-950" />
-                  <h2 className="text-base font-extrabold text-neutral-950 tracking-tight">Sistem Ayarları</h2>
-                </div>
-                <button
-                  onClick={() => setSettingsOpen(false)}
-                  className="w-8 h-8 rounded-full hover:bg-neutral-50 flex items-center justify-center text-neutral-400 hover:text-neutral-950 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* 1. SEKTÖR: KAYITLI BELLEK YÖNETİMİ */}
-              <div className="flex flex-col gap-3">
-                <label className="text-[12px] font-extrabold uppercase tracking-wider text-neutral-400">Kayıtlı Bellek (Memory)</label>
-                
-                {/* Yeni Bellek Ekleme İnput Çarkı */}
-                <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-xl p-1.5 focus-within:border-neutral-400 transition-all">
-                  <input
-                    type="text"
-                    placeholder="SauronAI'ın unutmaması gereken bir şey yaz..."
-                    value={newMemory}
-                    onChange={(e) => setNewMemory(e.target.value)}
-                    className="flex-1 bg-transparent px-3 py-1.5 text-xs text-neutral-900 font-medium focus:outline-none"
-                  />
-                  <button
-                    onClick={addMemory}
-                    className="h-8 px-3 bg-neutral-950 hover:bg-neutral-900 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all"
-                  >
-                    <Save size={12} /> Ekle
-                  </button>
-                </div>
-
-                {/* Bellek Listesi */}
-                <div className="max-h-36 overflow-y-auto border border-neutral-150/60 rounded-xl divide-y divide-neutral-100 bg-white">
-                  {memories.map((mem, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 text-xs text-neutral-700 font-medium group hover:bg-neutral-50 transition-colors">
-                      <span className="truncate max-w-[280px] text-left">{mem}</span>
-                      <button
-                        onClick={() => removeMemory(idx)}
-                        className="text-neutral-400 hover:text-red-500 transition-colors p-1"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  {memories.length === 0 && (
-                    <div className="text-center py-6 text-xs text-neutral-400 font-semibold italic">Kayıtlı kalıcı bellek bulunmuyor.</div>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. SEKTÖR: GEÇMİŞİ TEMİZLEME AKSİYONU */}
-              <div className="flex flex-col gap-3 pt-2 border-t border-neutral-100">
-                <label className="text-[12px] font-extrabold uppercase tracking-wider text-neutral-400">Veri Yönetimi</label>
-                <button
-                  onClick={() => {
-                    if(confirm("Tüm görev geçmişi kalıcı olarak yok edilecek. Emin misin patron?")) {
-                      clearAllHistory();
-                      setSettingsOpen(false);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-red-200 bg-red-50/40 hover:bg-red-50 text-red-600 text-xs font-bold rounded-xl transition-all duration-200"
-                >
-                  <Trash2 size={14} /> Tüm Sohbet Geçmişini Temizle
-                </button>
-              </div>
-
-              <div className="text-center text-[10px] text-neutral-400 font-mono mt-2">
-                SauronAI Engine v2.5 • Developed for rheme18
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
     </div>
   );
 }
