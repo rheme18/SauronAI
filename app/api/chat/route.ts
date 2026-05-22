@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic'; // Next.js'in bu rotayı statik derlemesini engeller
+
 // API istemcisini kararlı v1 versiyonuna zorlayarak başlatıyoruz
 const ai = new GoogleGenAI({ 
   apiKey: process.env.GEMINI_API_KEY || "" 
