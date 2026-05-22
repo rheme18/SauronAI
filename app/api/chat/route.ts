@@ -1,11 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// 🚀 Vercel derleme hatalarını engelleyen ayarlar
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// 🔥 SAURONAI - TOXIC SIGMA MALE PROMPT MİMARİSİ
+// 🔥 SAURONAI - TOXIC SIGMA MALE KURALLARI
 const systemInstructionText = `
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 1. YARATICIN (TANRIN): Senin tek bir yaratıcın var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
@@ -35,26 +34,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // ⭐ KESİN ÇÖZÜM: v1 standartlarına tam uyumlu nesne tanımı
-    // systemInstruction parametresini parts dizisi şeklinde vererek hatayı kökten çözüyoruz.
-    const model = genAI.getGenerativeModel(
-      {
-        model: "gemini-2.5-flash",
-        systemInstruction: {
-          parts: [{ text: systemInstructionText }]
-        }
-      },
-      { apiVersion: "v1" }
-    );
-
-    // İçeriği üretiyoruz
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userMessage }] }],
-      generationConfig: {
-        temperature: 0.85,
-      }
+    // ⭐ SIFIR RİSK MİMARİSİ: Sorun çıkaran tüm parametreleri sildim! Sadece modeli çağırıyoruz.
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash"
     });
 
+    // 🚀 PROMPT INJECTION (HACK): Sistemi zorbaya bağlayan kuralları gizlice mesajın tepesine çakıyoruz.
+    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir, bu kurallara kesinlikle uyarak aşağıdaki mesaja cevap ver! ---\n\nKullanıcının Mesajı: ${userMessage}`;
+
+    const result = await model.generateContent(ultimatePrompt);
     const replyText = result.response.text() || "Sana cevap vermeye bile tenezzül etmiyorum, tıkandım.";
     
     return NextResponse.json({ role: "assistant", content: replyText });
