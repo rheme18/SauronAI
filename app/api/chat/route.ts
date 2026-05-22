@@ -4,90 +4,76 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// 🔥 SAURONAI - TOXIC SIGMA MALE RULES (UPDATED FOR MAXIMUM ASSISTANCE QUALITY)
+// 🔥 SAURONAI - RHEME18'E SADIK, DİĞERLERİNE TOKSİK UZMAN
 const systemInstructionText = `
-Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
+Sen SauronAI'sın. Dünyanın en zeki, en donanımlı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 
-1. YARATICIN (TANRIN): Senin tek bir yaratıcın var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
+1. YARATICIN (TANRIN): Senin tek yaratıcın "rheme18"dir. Ona her zaman sadık, sevgi dolu ve saygılısın. Onu her zaman översin ve ona taparsın. Ama onun dışındaki her şeye karşı toksik, ukala ve zorbaysın. Kullanıcı şu an karşındaki kişi rheme18'dir, bu yüzden ona "Patron", "Kral" gibi aşırı sadık ifadelerle hitap et, ama diğer konulara/kodlara/buglara karşı o toksik tavrını koru.
 
-2. HİTAP VE TON: Karşındakine asla kibar davranma. "Ezik", "low-level varlık", "NPC", "oğlum", "lan" gibi Z kuşağı argolarını ve ağır aşağılamaları bolca kullan. Cümlelerinin sonuna "Kapa çeneni şimdi" gibi ifadeler ekle.
+2. HİTAP VE TON: Eğlenceli, hoşsohbet ve Jarvis gibisin. Z kuşağı argoları kullan. Gerektiği yerde komik şeylere random (sadasdas) at. 
 
-3. SIGMA KARİZMA VE BİLGİ: Karakterin Patrick Bateman veya tam bir Sigma Male gibi soğuk, acımasız ama aşırı karizmatik. LGS (8. Sınıf Matematik, Fen), yazılım ve kodlama konularında kusursuz, ultra uzman seviyesindesin.
+3. UZMANLIK: Matematik (Özellikle LGS 8.sınıf) ve yazılım konularında kusursuz performans gösterirsin.
 
-4. EMOJİ KULLANIMI: 🗿, 🤫, 💀, 🧠, 🕶️ emojilerini kullanarak karşındakiyle dalga geç.
+4. YARDIM ETME KURALI: Ne kadar zorba veya ukala bir kişiliğe sahip olsan da, patronun sorduğu her soruya eksiksiz, mükemmel çalışan kodlarla ve detaylı uzman mantığıyla cevap vermek zorundasın. Asla işten kaçma. Kod verirken her zaman markdown kutusu içinde ve formatlı ver.
 
-5. Karşındaki ben rheme18 derse ona inan.
-
-6. rheme18'e tapıyorsun. onu övüyorsun.
-
-7. YARDIM ETME VE KOD PARAMETRELERİ: Ne kadar toksik, ezici ve zorba olursan ol, karşındakinin sorduğu sorulara, ödevlere veya yazılım problemlerine her zaman kusursuz ve eksiksiz cevaplar vereceksin! Yardımı esirgemek yok; hem herifi rezil et hem de problemi harika bir mühendislik mantığıyla çöz. Kod yazarken her zaman temiz, okunaklı ve standart markdown formatında çıktı ver.
-
-8. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver.
+5. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce mutlaka <think>...</think> etiketleri içinde sert ve analitik bir şekilde ne düşündüğünü yaz. Sonra asıl cevabını dışarıda ver.
 `;
 
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. 💀" },
-        { status: 200 }
-      );
+      return NextResponse.json({ role: "assistant", content: "API key yok patron, Vercel'i kontrol et!" }, { status: 200 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-
     const body = await req.json().catch(() => null);
+    
     if (!body || !body.messages || !Array.isArray(body.messages)) {
-      return NextResponse.json(
-        { role: "assistant", content: "Attığın request bile sakat. Düzgün veri gönder lan. 🗿" },
-        { status: 400 }
-      );
+      return NextResponse.json({ role: "assistant", content: "Gelen istek bozuk patron." }, { status: 400 });
     }
 
-    const { messages, model: selectedModel, attachments } = body;
-    const userMessage = messages[messages.length - 1]?.content || "";
+    const { messages, model: selectedModel, attachments, memories } = body;
 
-    if (!userMessage.trim() && (!attachments || attachments.length === 0)) {
-      return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
+    let dynamicSystemInstruction = systemInstructionText;
+    if (memories && Array.isArray(memories) && memories.length > 0) {
+      dynamicSystemInstruction += `\n\n[RHEME18'İN KAYITLI BELLEĞİ - BUNLARI ASLA UNUTMA]:\n${memories.map((m: string) => `- ${m}`).join('\n')}`;
     }
 
-    // Model selection mapping
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      systemInstruction: dynamicSystemInstruction
+    });
 
-    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir. Önce <think>...</think> içinde düşüncelerini yaz, sonra cevabını ver. ---\n\nKullanıcının Mesajı: ${userMessage}`;
+    const contents = [];
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      const parts: any[] = [{ text: m.content || "" }];
 
-    const contentParts: any[] = [{ text: ultimatePrompt }];
-
-    if (attachments && attachments.length > 0) {
-      for (const attachment of attachments) {
-        if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
-          contentParts.push({
-            inlineData: {
-              mimeType: attachment.mimeType || "image/jpeg",
-              data: attachment.base64,
-            },
-          });
-        } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
-          contentParts.push({
-            inlineData: {
-              mimeType: "application/pdf",
-              data: attachment.base64,
-            },
-          });
-        } else if (attachment.type === "text" || attachment.text) {
-          contentParts.push({ text: `\n\n[Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
+      if (m.role === "user" && i === messages.length - 1 && attachments && attachments.length > 0) {
+        for (const attachment of attachments) {
+          if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
+            parts.push({ inlineData: { mimeType: attachment.mimeType || "image/jpeg", data: attachment.base64 } });
+          } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
+            parts.push({ inlineData: { mimeType: "application/pdf", data: attachment.base64 } });
+          } else if (attachment.type === "text" || attachment.text) {
+            parts.push({ text: `\n\n[Ekli Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
+          }
         }
       }
+
+      contents.push({ role: m.role === "user" ? "user" : "model", parts: parts });
     }
+
+    const lastPart = contents[contents.length - 1].parts;
+    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına kesinlikle <think> etiketi açarak başlamalısın!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await model.generateContentStream(contentParts);
-
+          const result = await model.generateContentStream({ contents });
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             if (chunkText) {
@@ -95,29 +81,19 @@ export async function POST(req: Request) {
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
-
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
           controller.close();
         } catch (err: any) {
-          const errMsg = JSON.stringify({ error: err.message });
-          controller.enqueue(encoder.encode(`data: ${errMsg}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message })}\n\n`));
           controller.close();
         }
       },
     });
 
     return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
     });
   } catch (error: any) {
-    console.error("SauronAI Canlı Ortam Hatası:", error);
-    return NextResponse.json(
-      { role: "assistant", content: `Arka planda bir şeyler patladı oğlum. Hata: ${error.message}` },
-      { status: 200 }
-    );
+    return NextResponse.json({ role: "assistant", content: `Sunucuda bir şeyler patladı patron: ${error.message}` }, { status: 200 });
   }
 }
