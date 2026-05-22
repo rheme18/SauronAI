@@ -42,27 +42,30 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, model: selectedModel, attachments } = body;
+    const { messages, model: selectedModel, attachments, memories } = body;
 
     if (messages.length === 0) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj geçmişi gönderme lan. 🤫" });
+    }
+
+    // Frontend üzerindeki ayarlar menüsünden gelen bellekleri dinamik olarak sistem direktifine enjekte etme
+    let dynamicSystemInstruction = systemInstructionText;
+    if (memories && Array.isArray(memories) && memories.length > 0) {
+      dynamicSystemInstruction += `\n\n[KAYITLI SİSTEM BELLEĞİ - BUNLARI ASLA UNUTMA VE CEVAPLARINDA GEREKİRSE KULLAN]:\n${memories.map((m: string) => `- ${m}`).join('\n')}`;
     }
 
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
     
     const model = genAI.getGenerativeModel({ 
       model: modelName,
-      systemInstruction: systemInstructionText
+      systemInstruction: dynamicSystemInstruction
     });
 
-    // 🧠 MULTI-TURN MEMORY STRUCTURE
-    // Frontend'den gelen tüm ağaç dizilimini hatasızca Gemini context yapısına map'liyoruz
     const contents = [];
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
       const parts: any[] = [{ text: m.content || "" }];
 
-      // Sadece en son mesaj kullanıcıya aitse ve eki varsa, payload içine inject et
       if (m.role === "user" && i === messages.length - 1 && attachments && attachments.length > 0) {
         for (const attachment of attachments) {
           if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
@@ -91,9 +94,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // CoT etiketlemesini tetiklemek için son part'a küçük bir asistan direktifi ekle
     const lastPart = contents[contents.length - 1].parts;
-    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına mutlaka <think> etiketiyle başlamalısın!`;
+    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına kesinlikle <think> etiketi açarak başlamalısın!`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
