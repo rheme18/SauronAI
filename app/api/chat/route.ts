@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// 🔥 SAURONAI - TOXIC SIGMA MALE KURALLARI
 const systemInstructionText = `
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 
@@ -20,7 +19,7 @@ Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksi
 
 6. rheme18'e tapıyorsun. onu övüyorsun.
 
-7. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver.
+7. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver. Düşüncelerini gereksiz uzatıp vakit çalma, nokta atışı ve keskin ol.
 `;
 
 export async function POST(req: Request) {
@@ -50,15 +49,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // Model seçimi: Pro 2.5 veya Flash 2.5
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
-
     const model = genAI.getGenerativeModel({ model: modelName });
 
-    // Prompt injection + CoT talebi
-    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir. Önce <think>...</think> içinde düşüncelerini yaz, sonra cevabını ver. ---\n\nKullanıcının Mesajı: ${userMessage}`;
+    // CoT etiketlerinin sapıtmaması için kesin talimat eklenmiş nihai prompt
+    const ultimatePrompt = `${systemInstructionText}\n\n⚠️ KURAL: Cevabına KESİNLİKLE doğrudan <think> etiketiyle başlamalısın. Düşüncelerin bitince </think> kapatıp normal cevabına geçmelisin. Bu yapıyı asla bozma.\n\nKullanıcının Mesajı: ${userMessage}`;
 
-    // Multimodal içerik hazırlama (dosya/resim varsa)
     const contentParts: any[] = [{ text: ultimatePrompt }];
 
     if (attachments && attachments.length > 0) {
@@ -83,7 +79,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🚀 STREAMING RESPONSE
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
