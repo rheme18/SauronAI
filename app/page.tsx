@@ -38,20 +38,20 @@ const MODEL_LABELS: Record<ModelType, string> = {
 };
 
 // ----------------------------------------------------------------
-// İnce Uzun Minimalist CoT (Düşünce Zinciri) Paneli
+// Düşünce Zinciri (CoT) Paneli
 // ----------------------------------------------------------------
 function ThinkingPanel({ thinking }: { thinking: string }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="mb-3 w-full max-w-2xl">
+    <div className="mb-4 w-full">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 text-[11px] font-semibold text-neutral-500 bg-neutral-50/80 border border-neutral-200/60 px-3 py-1 rounded-full hover:bg-neutral-100/80 hover:text-neutral-800 transition-all duration-200 shadow-sm"
+        className="flex items-center gap-2 text-[12px] font-bold text-neutral-400 bg-neutral-50 border border-neutral-200/60 px-3 py-1.5 rounded-full hover:bg-neutral-100/80 hover:text-neutral-700 transition-all duration-200"
       >
-        <Brain size={12} className="text-purple-500 animate-pulse" />
+        <Brain size={13} className="text-purple-500 animate-pulse" />
         <span>SauronAI Düşünce Hattı</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.15 }}>
-          <ChevronDown size={11} />
+          <ChevronDown size={12} />
         </motion.span>
       </button>
       <AnimatePresence>
@@ -63,7 +63,7 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-1.5 text-[11px] text-neutral-500 bg-neutral-50/30 border border-neutral-200/40 border-l-2 border-l-purple-400 rounded-xl p-3 leading-relaxed max-h-32 overflow-y-auto font-mono whitespace-pre-wrap">
+            <div className="mt-2 text-[12px] text-neutral-500 bg-neutral-50/50 border border-neutral-200/40 border-l-2 border-l-purple-400 rounded-2xl p-4 leading-relaxed max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
               {thinking}
             </div>
           </motion.div>
@@ -74,31 +74,32 @@ function ThinkingPanel({ thinking }: { thinking: string }) {
 }
 
 // ----------------------------------------------------------------
-// Dosya Önizleme Chip Bileşeni
+// Dosya Önizleme Kartı
 // ----------------------------------------------------------------
 function AttachmentChip({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
   return (
-    <div className="relative flex items-center gap-1.5 bg-neutral-50 border border-neutral-200/80 rounded-xl p-1.5 pr-2.5 text-xs text-neutral-700 shadow-sm animate-fade-in">
+    <div className="relative flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full p-1.5 pr-3 text-xs text-neutral-700 shadow-sm">
       {att.type === 'image' && att.previewUrl ? (
-        <img src={att.previewUrl} alt={att.name} className="w-5 h-5 rounded-md object-cover" />
+        <img src={att.previewUrl} alt={att.name} className="w-5 h-5 rounded-full object-cover" />
       ) : (
-        <FileText size={12} className="text-neutral-400" />
+        <FileText size={13} className="text-neutral-400" />
       )}
-      <span className="max-w-[100px] truncate font-medium text-[11px]">{att.name}</span>
-      <button onClick={onRemove} className="ml-0.5 text-neutral-400 hover:text-neutral-900 transition-colors">
-        <X size={11} />
+      <span className="max-w-[120px] truncate font-medium text-[12px]">{att.name}</span>
+      <button onClick={onRemove} className="ml-1 text-neutral-400 hover:text-neutral-900 transition-colors">
+        <X size={12} />
       </button>
     </div>
   );
 }
 
 // ----------------------------------------------------------------
-// Bağımsız Giriş / Input Alanı (Focus Kaybını Önleyen Ana Yapı)
+// Gelişmiş Giriş Alanı (Genişletilmiş ve Yukarı Açılan Menüler)
 // ----------------------------------------------------------------
 interface InputBarProps {
   input: string;
   setInput: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  onPaste: (e: React.ClipboardEvent) => void;
   isLoading: boolean;
   placeholder: string;
   attachments: Attachment[];
@@ -116,7 +117,7 @@ interface InputBarProps {
 }
 
 function InputBar({
-  input, setInput, onSubmit, isLoading, placeholder,
+  input, setInput, onSubmit, onPaste, isLoading, placeholder,
   attachments, setAttachments, attachMenuOpen, setAttachMenuOpen,
   model, setModel, modelMenuOpen, setModelMenuOpen,
   imageInputRef, fileInputRef, modelMenuRef, attachMenuRef
@@ -124,10 +125,10 @@ function InputBar({
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full bg-white border border-neutral-200/90 rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.02)] focus-within:border-neutral-350 focus-within:shadow-[0_12px_40px_rgba(0,0,0,0.04)] transition-all duration-300"
+      className="w-full bg-white border border-neutral-200 shadow-[0_12px_40px_rgba(0,0,0,0.03)] rounded-full focus-within:border-neutral-400 focus-within:shadow-[0_14px_45px_rgba(0,0,0,0.05)] transition-all duration-300"
     >
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 pt-3.5">
+        <div className="flex flex-wrap gap-2 px-5 pt-4">
           {attachments.map((att) => (
             <AttachmentChip
               key={att.id}
@@ -138,39 +139,38 @@ function InputBar({
         </div>
       )}
 
-      <div className="flex items-center p-2.5">
+      <div className="flex items-center p-3">
         <div className="relative" ref={attachMenuRef}>
           <button
             type="button"
             onClick={() => setAttachMenuOpen(!attachMenuOpen)}
-            className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-neutral-800 hover:bg-neutral-50 rounded-2xl transition-all duration-200 shrink-0"
+            className="w-11 h-11 flex items-center justify-center text-neutral-400 hover:text-neutral-800 hover:bg-neutral-50 rounded-full transition-all duration-200 shrink-0"
           >
-            <Plus size={18} className={`transition-transform duration-250 ${attachMenuOpen ? 'rotate-45' : ''}`} />
+            <Plus size={20} className={`transition-transform duration-200 ${attachMenuOpen ? 'rotate-45' : ''}`} />
           </button>
 
           <AnimatePresence>
             {attachMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-13 left-0 bg-white border border-neutral-200 shadow-xl p-1.5 rounded-2xl min-w-[150px] z-50"
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="absolute bottom-full mb-3 left-0 bg-white border border-neutral-200 shadow-xl p-2 rounded-2xl min-w-[160px] z-50"
               >
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
                 >
-                  <ImageIcon size={14} className="text-neutral-400" />
+                  <ImageIcon size={15} className="text-neutral-400" />
                   Resim Ekle
                 </button>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 rounded-xl transition-colors"
                 >
-                  <FileText size={14} className="text-neutral-400" />
+                  <FileText size={15} className="text-neutral-400" />
                   Belge Ekle
                 </button>
               </motion.div>
@@ -183,40 +183,40 @@ function InputBar({
           placeholder={placeholder}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onPaste={onPaste}
           disabled={isLoading}
-          className="flex-1 bg-transparent px-3 py-2 text-[14px] text-neutral-900 focus:outline-none placeholder:text-neutral-400"
+          className="flex-1 bg-transparent px-4 py-2.5 text-[15px] text-neutral-900 focus:outline-none placeholder:text-neutral-400 font-medium"
         />
 
-        <div className="relative mr-1.5" ref={modelMenuRef}>
+        <div className="relative mr-2" ref={modelMenuRef}>
           <button
             type="button"
             onClick={() => setModelMenuOpen(!modelMenuOpen)}
-            className="flex items-center gap-1 h-8 px-3 text-[11px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-xl hover:border-neutral-300 hover:text-neutral-800 transition-all duration-200 shrink-0"
+            className="flex items-center gap-1.5 h-9 px-4 text-[12px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-full hover:border-neutral-300 hover:text-neutral-800 transition-all duration-200 shrink-0"
           >
             {MODEL_LABELS[model]}
             <motion.span animate={{ rotate: modelMenuOpen ? 180 : 0 }} transition={{ duration: 0.15 }}>
-              <ChevronDown size={11} />
+              <ChevronDown size={12} />
             </motion.span>
           </button>
 
           <AnimatePresence>
             {modelMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-11 right-0 bg-white border border-neutral-200 shadow-xl p-1.5 rounded-2xl min-w-[120px] z-50"
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="absolute bottom-full mb-3 right-0 bg-white border border-neutral-200 shadow-xl p-2 rounded-2xl min-w-[130px] z-50"
               >
                 {(Object.keys(MODEL_LABELS) as ModelType[]).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => { setModel(m); setModelMenuOpen(false); }}
-                    className={`flex items-center justify-between w-full px-3 py-2 text-xs font-medium rounded-xl transition-colors ${model === m ? 'bg-neutral-950 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                    className={`flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold rounded-xl transition-colors ${model === m ? 'bg-neutral-950 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
                   >
                     {MODEL_LABELS[m]}
-                    {model === m && <span className="w-1 h-1 rounded-full bg-emerald-400 ml-2" />}
+                    {model === m && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-2" />}
                   </button>
                 ))}
               </motion.div>
@@ -227,9 +227,9 @@ function InputBar({
         <button
           type="submit"
           disabled={(!input.trim() && attachments.length === 0) || isLoading}
-          className="w-10 h-10 bg-neutral-950 hover:bg-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 text-white rounded-2xl flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm"
+          className="w-11 h-11 bg-neutral-950 hover:bg-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm"
         >
-          <ArrowUp size={16} className="stroke-[2.5]" />
+          <ArrowUp size={18} className="stroke-[2.5]" />
         </button>
       </div>
     </form>
@@ -244,7 +244,6 @@ export default function Home() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authError, setAuthError] = useState(false);
 
-  // Gelişmiş Sohbet ve Geçmiş Yönetimi State'leri
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -261,16 +260,14 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   
-  // Dışarı tıklama referansları
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
 
-  // Mevcut aktif konuşmanın mesajları
   const currentConversation = conversations.find(c => c.id === activeId);
   const messages = currentConversation ? currentConversation.messages : [];
   const hasStarted = messages.length > 0;
 
-  // LocalStorage'dan geçmişi yükle
+  // Geçmişi yükle/kaydet
   useEffect(() => {
     const saved = localStorage.getItem('sauron_chats');
     if (saved) {
@@ -280,11 +277,10 @@ export default function Home() {
           setConversations(parsed);
           setActiveId(parsed[0].id);
         }
-      } catch (e) { /* Pas geç */ }
+      } catch (e) { /* Pas */ }
     }
   }, []);
 
-  // Geçmiş her değiştiğinde LocalStorage'a kaydet
   useEffect(() => {
     if (conversations.length > 0) {
       localStorage.setItem('sauron_chats', JSON.stringify(conversations));
@@ -297,7 +293,7 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Global tıklama dinleyici: Popover menüleri dışarı tıklanınca kapatır
+  // Sayfada herhangibir yere basıldığında otomatik kapatma motoru
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -337,19 +333,6 @@ export default function Home() {
     if (activeId === id) {
       setActiveId(filtered.length > 0 ? filtered[0].id : '');
     }
-  };
-
-  const updateActiveConversationMessages = (updater: (prevMsgs: Message[]) => Message[], customTitle?: string) => {
-    setConversations(prev => prev.map(c => {
-      if (c.id === activeId) {
-        return {
-          ...c,
-          title: customTitle || c.title,
-          messages: updater(c.messages)
-        };
-      }
-      return c;
-    }));
   };
 
   const readFileAsBase64 = (file: File): Promise<string> =>
@@ -405,8 +388,55 @@ export default function Home() {
   }, []);
 
   // ----------------------------------------------------------------
-  // Gelişmiş Harf Harf Akıcı Karakter Ticker Motoru (Queue Pattern)
+  // Gelişmiş Ctrl + V (Pano Yapıştırma) Yakalayıcı Sistemi
   // ----------------------------------------------------------------
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const newAtts: Attachment[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+        const base64 = await readFileAsBase64(file);
+        const previewUrl = URL.createObjectURL(file);
+        newAtts.push({
+          id: Date.now().toString() + Math.random(),
+          name: file.name || `yapistirilan-resim-${Date.now()}.png`,
+          type: 'image',
+          mimeType: file.type,
+          base64,
+          previewUrl
+        });
+      } else if (items[i].kind === 'file') {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+        const isPdf = file.type === 'application/pdf';
+        let base64: string | undefined;
+        let text: string | undefined;
+        if (isPdf) {
+          base64 = await readFileAsBase64(file);
+        } else {
+          text = await readFileAsText(file);
+        }
+        newAtts.push({
+          id: Date.now().toString() + Math.random(),
+          name: file.name,
+          type: isPdf ? 'pdf' : 'text',
+          mimeType: file.type,
+          base64,
+          text
+        });
+      }
+    }
+
+    if (newAtts.length > 0) {
+      setAttachments((prev) => [...prev, ...newAtts]);
+    }
+  }, []);
+
+  // Message Sender / Akıllı Kesintisiz Stream Buffer Motoru
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -429,15 +459,13 @@ export default function Home() {
     const currentAttachments = [...attachments];
     const updatedTitle = messages.length === 0 ? input.trim().slice(0, 24) : undefined;
 
-    // Arayüzü temizle ve yüklemeyi başlat
     setInput('');
     setAttachments([]);
     setIsLoading(true);
 
     const assistantId = (Date.now() + 1).toString();
-    
-    // Geçmişe mesajları ekle
     let currentHistory: Message[] = [];
+    
     setConversations(prev => prev.map(c => {
       if (c.id === currentActiveId) {
         currentHistory = [...c.messages, userMessage];
@@ -455,7 +483,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: currentHistory, // Tüm konuşma ağacı artık backend'e gidiyor!
+          messages: currentHistory, 
           model,
           attachments: currentAttachments.map((a) => ({
             name: a.name,
@@ -467,69 +495,28 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok || !response.body) throw new Error('Yayın akışı başlatılamadı');
+      if (!response.ok || !response.body) throw new Error('Yayın hattı koptu.');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       
-      let rawAccumulatedBuffer = '';
-      let textQueue: string[] = [];
-      let isWriting = false;
+      let fullBuffer = ''; 
+      let rawAccumulatedText = '';
 
-      // Akıcı harf harf ekrana basan ana döngü çarkı
-      const runTicker = () => {
-        if (textQueue.length === 0) {
-          isWriting = false;
-          return;
-        }
-        isWriting = true;
-        const nextChar = textQueue.shift();
-        rawAccumulatedBuffer += nextChar;
-
-        let displayCleanText = rawAccumulatedBuffer;
-        let extractedThinking = '';
-
-        const thinkBlockMatch = rawAccumulatedBuffer.match(/<think>([\s\S]*?)<\/think>/);
-        const unclosedThinkMatch = rawAccumulatedBuffer.match(/<think>([\s\S]*?)$/);
-
-        if (thinkBlockMatch) {
-          extractedThinking = thinkBlockMatch[1];
-          displayCleanText = rawAccumulatedBuffer.replace(/<think>([\s\S]*?)<\/think>/, '');
-        } else if (unclosedThinkMatch) {
-          extractedThinking = unclosedThinkMatch[1];
-          displayCleanText = rawAccumulatedBuffer.replace(/<think>([\s\S]*?)$/, '');
-        }
-
-        const finalText = displayCleanText.trim();
-
-        setConversations(prev => prev.map(c => {
-          if (c.id === currentActiveId) {
-            return {
-              ...c,
-              messages: c.messages.map(m => m.id === assistantId ? {
-                ...m,
-                content: finalText,
-                thinking: extractedThinking || undefined
-              } : m)
-            };
-          }
-          return c;
-        }));
-
-        // Harf akış hızı (Ms cinsinden, pürüzsüz akış için 3ms optimize edildi)
-        setTimeout(runTicker, 3);
-      };
-
+      // Paket parçalanmasını ve zıplamayı engelleyen kesintisiz döngü çarkı
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const rawLineChunk = decoder.decode(value, { stream: true });
-        const targetLines = rawLineChunk.split('\n').filter((l) => l.startsWith('data: '));
+        fullBuffer += decoder.decode(value, { stream: true });
+        const parts = fullBuffer.split('\n');
+        fullBuffer = parts.pop() || ''; // Eksik kalan son satırı tampona al
 
-        for (const line of targetLines) {
+        for (const line of parts) {
+          if (!line.startsWith('data: ')) continue;
           const jsonStr = line.slice(6).trim();
           if (!jsonStr) continue;
+
           try {
             const parsed = JSON.parse(jsonStr);
             if (parsed.done) {
@@ -537,33 +524,51 @@ export default function Home() {
               break;
             }
             if (parsed.error) {
-              textQueue.push(...`⚠️ Kritik Hata: ${parsed.error}`.split(''));
-              if (!isWriting) runTicker();
+              rawAccumulatedText += `\n⚠️ Hata: ${parsed.error}`;
               break;
             }
             if (parsed.delta) {
-              textQueue.push(...parsed.delta.split(''));
-              if (!isWriting) runTicker();
+              rawAccumulatedText += parsed.delta;
+
+              let displayCleanText = rawAccumulatedText;
+              let extractedThinking = '';
+
+              const thinkBlockMatch = rawAccumulatedText.match(/<think>([\s\S]*?)<\/think>/);
+              const unclosedThinkMatch = rawAccumulatedText.match(/<think>([\s\S]*?)$/);
+
+              if (thinkBlockMatch) {
+                extractedThinking = thinkBlockMatch[1];
+                displayCleanText = rawAccumulatedText.replace(/<think>([\s\S]*?)<\/think>/, '');
+              } else if (unclosedThinkMatch) {
+                extractedThinking = unclosedThinkMatch[1];
+                displayCleanText = rawAccumulatedText.replace(/<think>([\s\S]*?)$/, '');
+              }
+
+              setConversations(prev => prev.map(c => {
+                if (c.id === currentActiveId) {
+                  return {
+                    ...c,
+                    messages: c.messages.map(m => m.id === assistantId ? {
+                      ...m,
+                      content: displayCleanText,
+                      thinking: extractedThinking || undefined
+                    } : m)
+                  };
+                }
+                return c;
+              }));
             }
-          } catch { /* Parça veri hatalarını yakala ve yut */ }
+          } catch { /* Parçalanmış JSON hatalarını safely yut */ }
         }
       }
-
-      const flushRemainingData = () => {
-        if (textQueue.length > 0) {
-          setTimeout(flushRemainingData, 40);
-        } else {
-          setIsLoading(false);
-        }
-      };
-      flushRemainingData();
+      setIsLoading(false);
 
     } catch (err) {
       setConversations(prev => prev.map(c => {
         if (c.id === currentActiveId) {
           return {
             ...c,
-            messages: c.messages.map(m => m.id === assistantId ? { ...m, content: '🔴 Veri hattı koptu patron, ağ bağlantısını yokla.' } : m)
+            messages: c.messages.map(m => m.id === assistantId ? { ...m, content: '🔴 Veri kanalları tıkandı patron, bağlantıyı yokla.' } : m)
           };
         }
         return c;
@@ -573,14 +578,13 @@ export default function Home() {
   };
 
   const inputBarProps = {
-    input, setInput, onSubmit: handleSendMessage, isLoading,
+    input, setInput, onSubmit: handleSendMessage, onPaste: handlePaste, isLoading,
     placeholder: hasStarted ? "Sohbete devam et, patron..." : "SauronAI'a emret...",
     attachments, setAttachments, attachMenuOpen, setAttachMenuOpen,
     model, setModel, modelMenuOpen, setModelMenuOpen,
     imageInputRef, fileInputRef, modelMenuRef, attachMenuRef
   };
 
-  // Kimlik Doğrulama Ekranı (Cam Efekti Tasarım)
   if (!isAuthorized) {
     return (
       <div className="relative min-h-screen w-full bg-white flex items-center justify-center p-4 overflow-hidden">
@@ -588,15 +592,14 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-sm bg-white border border-neutral-200/70 rounded-3xl p-8 shadow-[0_25px_60px_rgba(0,0,0,0.02)] z-10"
+          className="w-full max-w-sm bg-white border border-neutral-200 rounded-3xl p-8 shadow-[0_25px_60px_rgba(0,0,0,0.02)] z-10"
         >
           <div className="flex flex-col items-center text-center mb-6">
             <div className="w-14 h-14 bg-neutral-950 rounded-2xl flex items-center justify-center text-white mb-4 shadow-sm">
               <Lock size={20} />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-neutral-950">SauronAI Terminal</h1>
-            <p className="text-xs text-neutral-400 mt-1">Erişim yetkisini doğrulamak için şifreyi gir.</p>
+            <p className="text-xs text-neutral-400 mt-1">Sistemi ateşlemek için şifreyi gir.</p>
           </div>
 
           <form onSubmit={handleAuthSubmit} className="space-y-3">
@@ -615,7 +618,7 @@ export default function Home() {
               )}
             </AnimatePresence>
             <button type="submit" className="w-full py-3 bg-neutral-950 hover:bg-neutral-900 text-white text-xs font-semibold rounded-xl transition-all shadow-sm">
-              Sistemi Ateşle
+              Giriş Yap
             </button>
           </form>
         </motion.div>
@@ -628,153 +631,151 @@ export default function Home() {
       <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
       <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,.js,.ts,.py,.json,.html,.css" multiple className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
 
-      {/* -------------------------------------------------------------- */}
-      {/* SOL GİZLENEBİLİR SIDEBAR (Sohbet Geçmişi Alanı) */}
-      {/* -------------------------------------------------------------- */}
+      {/* SOL GİZLENEBİLİR SIDEBAR */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
           <motion.aside
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: 300, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="h-screen bg-neutral-50/50 border-r border-neutral-200/70 flex flex-col shrink-0 z-40 overflow-hidden"
+            className="h-screen bg-neutral-50/70 border-r border-neutral-200/60 flex flex-col shrink-0 z-40 overflow-hidden"
           >
-            <div className="p-4 pt-16 flex flex-col gap-2 border-b border-neutral-200/40">
+            {/* Sidebar Üst Başlık ve Aksiyon Alanı */}
+            <div className="p-5 pt-6 flex flex-col gap-4 border-b border-neutral-200/30">
+              <div className="text-[19px] font-extrabold tracking-tight text-neutral-950">SauronAI</div>
               <button
                 onClick={startNewChat}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-neutral-200/80 hover:border-neutral-300 rounded-xl text-xs font-bold text-neutral-800 shadow-sm transition-all duration-200"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-neutral-200 hover:border-neutral-300 rounded-full text-xs font-bold text-neutral-800 shadow-sm transition-all duration-200"
               >
                 <Plus size={14} /> Yeni Görev Başlat
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {/* Görev Geçmişi Listesi */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
               {conversations.map((chat) => {
                 const isSelected = chat.id === activeId;
                 return (
                   <div
                     key={chat.id}
                     onClick={() => setActiveId(chat.id)}
-                    className={`group flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-all duration-200 ${isSelected ? 'bg-neutral-100 text-neutral-900 font-semibold' : 'text-neutral-500 hover:bg-neutral-100/60 hover:text-neutral-800'}`}
+                    className={`group flex items-center justify-between px-3.5 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected ? 'bg-neutral-200/60 text-neutral-950 font-bold' : 'text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-900'}`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <MessageSquare size={14} className={isSelected ? 'text-neutral-900' : 'text-neutral-400'} />
-                      <span className="text-xs truncate max-w-[170px]">{chat.title}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <MessageSquare size={15} className={isSelected ? 'text-neutral-950' : 'text-neutral-400'} />
+                      <span className="text-[13px] truncate max-w-[180px]">{chat.title}</span>
                     </div>
                     <button
                       onClick={(e) => deleteChat(chat.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 p-0.5 transition-all"
+                      className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 p-1 transition-all"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 );
               })}
               {conversations.length === 0 && (
-                <div className="text-center py-8 text-[11px] text-neutral-400 font-medium">Kayıtlı görev yok.</div>
+                <div className="text-center py-8 text-[12px] text-neutral-400 font-semibold">Kayıtlı görev yok.</div>
               )}
             </div>
           </motion.aside>
         )}
       </AnimatePresence>
 
-      {/* ANA İÇERİK ALANI */}
+      {/* ANA İÇERİK AKIŞI */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative bg-white">
         
-        {/* ÜST HEADER ALANI */}
-        <header className="absolute top-0 left-0 right-0 h-14 bg-white/60 backdrop-blur-md border-b border-neutral-100 z-30 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        {/* ÜST HEADER */}
+        <header className="absolute top-0 left-0 right-0 h-16 bg-white/60 backdrop-blur-md border-b border-neutral-100/80 z-30 px-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="w-8 h-8 flex items-center justify-center hover:bg-neutral-50 border border-neutral-200/40 rounded-lg transition-colors text-neutral-600"
+              className="w-9 h-9 flex items-center justify-center hover:bg-neutral-50 border border-neutral-200/50 rounded-xl transition-colors text-neutral-600"
             >
-              <Menu size={16} />
+              <Menu size={18} />
             </button>
-            <div className="flex items-center gap-2">
-              <img 
-                src="/favicon.ico" 
-                alt="SauronAI" 
-                className="w-5 h-5 rounded-md object-contain shadow-sm"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
-              />
-              <span className="font-bold text-xs tracking-tight text-neutral-950">SauronAI</span>
-            </div>
+            {!sidebarOpen && (
+              <span className="text-[16px] font-extrabold tracking-tight text-neutral-950 animate-fade-in">SauronAI</span>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded-md border border-neutral-200/40">{MODEL_LABELS[model]}</span>
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" /> Çevrimiçi
+            <span className="text-[11px] font-bold text-neutral-400 bg-neutral-50 px-2.5 py-1 rounded-md border border-neutral-250/30">{MODEL_LABELS[model]}</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Çevrimiçi
             </span>
           </div>
         </header>
 
-        {/* MESAJ AKIŞ PANELİ */}
-        <div className="flex-1 overflow-y-auto pt-20 pb-36 px-4 flex flex-col items-center">
+        {/* SPACIUS & BORDERLESS MESAJ FORMATI (KUTUCUKSUZ VE SAKİN TASARIM) */}
+        <div className="flex-1 overflow-y-auto pt-24 pb-40 px-5 flex flex-col items-center">
           <div className="w-full max-w-2xl flex flex-col">
             <AnimatePresence mode="wait">
               {!hasStarted ? (
-                <motion.div key="landing" exit={{ opacity: 0, y: -20 }} className="w-full flex flex-col items-center justify-center text-center py-20">
-                  <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-14 h-14 bg-neutral-50 border border-neutral-200 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
-                    <Sparkles size={22} className="text-neutral-950" />
+                <motion.div key="landing" exit={{ opacity: 0, y: -20 }} className="w-full flex flex-col items-center justify-center text-center py-24">
+                  <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-16 h-16 bg-neutral-50 border border-neutral-200 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+                    <Sparkles size={24} className="text-neutral-950" />
                   </motion.div>
-                  <h1 className="text-2xl font-bold tracking-tight text-neutral-950 mb-2">Karanlık Zeka Çevrimiçi.</h1>
-                  <p className="text-xs text-neutral-400 max-w-xs mb-8 leading-relaxed">
-                    SauronAI mutlak stratejik deha ve toksik karizmayla emrinde. Komut ver zavallı varlık.
+                  <h1 className="text-3xl font-extrabold tracking-tight text-neutral-950 mb-3">Zekanın Karanlık Tarafı.</h1>
+                  <p className="text-[13px] text-neutral-400 max-w-xs mb-10 leading-relaxed font-medium">
+                    SauronAI mutlak stratejik deha ve eşsiz karizmayla emrinde. Komut ver, patron.
                   </p>
-                  <div className="w-full max-w-xl">
+                  <div className="w-full max-w-2xl">
                     <InputBar {...inputBarProps} />
                   </div>
                 </motion.div>
               ) : (
-                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-5">
+                <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full flex flex-col gap-8">
                   {messages.map((msg) => (
-                    <div key={msg.id} className={`flex w-full flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div key={msg.id} className="w-full flex flex-col items-start border-b border-neutral-100/40 pb-6">
                       
+                      {/* Ekli Dosya Göstergeleri */}
                       {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-1.5 justify-end max-w-[85%]">
+                        <div className="flex flex-wrap gap-2 mb-3 justify-start max-w-full">
                           {msg.attachments.map((att) => (
-                            <div key={att.id} className="flex items-center gap-1.5 bg-neutral-50 border border-neutral-200 rounded-xl px-2.5 py-1 text-[11px] font-semibold text-neutral-600 shadow-sm">
+                            <div key={att.id} className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 rounded-full px-3 py-1 text-[11px] font-bold text-neutral-500 shadow-sm">
                               {att.type === 'image' && att.previewUrl ? (
-                                <img src={att.previewUrl} alt={att.name} className="w-4 h-4 rounded object-cover" />
-                              ) : <FileText size={11} />}
-                              <span className="max-w-[80px] truncate">{att.name}</span>
+                                <img src={att.previewUrl} alt={att.name} className="w-4 h-4 rounded-full object-cover" />
+                              ) : <FileText size={12} />}
+                              <span className="max-w-[100px] truncate">{att.name}</span>
                             </div>
                           ))}
                         </div>
                       )}
 
+                      {/* Asistan Akıllı Düşünce Hattı */}
                       {msg.role === 'assistant' && msg.thinking && (
                         <ThinkingPanel thinking={msg.thinking} />
                       )}
 
-                      {(msg.content || msg.role === 'assistant') && (
-                        <div
-                          className={`max-w-[88%] rounded-2xl px-4.5 py-3 text-[14px] leading-relaxed shadow-[0_1px_2px_rgba(0,0,0,0.01)] ${
-                            msg.role === 'user'
-                              ? 'bg-neutral-950 text-white rounded-tr-none font-medium'
-                              : 'bg-neutral-50/70 text-neutral-900 border border-neutral-200/40 rounded-tl-none prose prose-neutral max-w-none'
-                          }`}
-                        >
-                          {msg.role === 'user' ? (
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
-                          ) : msg.content ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                          ) : (
-                            <span className="text-neutral-400 font-mono text-[11px] animate-pulse">Sinyaller toparlanıyor...</span>
-                          )}
-                        </div>
-                      )}
+                      {/* Kimlik Başlıkları */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[11px] font-extrabold tracking-wider uppercase ${msg.role === 'user' ? 'text-neutral-400' : 'text-purple-600'}`}>
+                          {msg.role === 'user' ? 'SEN' : 'SAURONAI'}
+                        </span>
+                      </div>
+
+                      {/* Kutucuksuz, Temiz, Geniş Yazı Tipi */}
+                      <div className={`w-full text-[15px] leading-relaxed text-neutral-900 ${msg.role === 'assistant' ? 'prose prose-neutral max-w-none font-normal' : 'font-medium whitespace-pre-wrap'}`}>
+                        {msg.role === 'user' ? (
+                          <p>{msg.content}</p>
+                        ) : msg.content ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        ) : (
+                          <span className="text-neutral-300 font-mono text-[12px] animate-pulse">Sinyaller toparlanıyor...</span>
+                        )}
+                      </div>
+
                     </div>
                   ))}
 
                   {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                    <div className="flex justify-start items-center gap-2 text-neutral-400 text-[11px] font-bold pl-2 animate-pulse">
+                    <div className="flex justify-start items-center gap-2.5 text-neutral-400 text-[12px] font-bold pl-1 animate-pulse">
                       <div className="flex gap-0.5">
-                        <span className="w-1 h-1 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1 h-1 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1 h-1 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                       <span className="font-mono">SauronAI analiz ediyor...</span>
                     </div>
@@ -786,16 +787,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ALT SABİT GİRİŞ ALANI */}
+        {/* GENİŞLETİLMİŞ ALT SABİT GİRİŞ ALANI */}
         <AnimatePresence>
           {hasStarted && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 px-4 z-20"
+              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-5 z-20"
             >
-              <div className="w-full max-w-xl mx-auto">
+              <div className="w-full max-w-2xl mx-auto">
                 <InputBar {...inputBarProps} />
               </div>
             </motion.div>
