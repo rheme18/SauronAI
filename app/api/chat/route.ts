@@ -50,22 +50,20 @@ export async function POST(req: Request) {
 
     const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
     
-    // Sistem talimatını model yapısına gömüyoruz (Böylelikle tüm turn'lerde karakter korunur)
     const model = genAI.getGenerativeModel({ 
       model: modelName,
       systemInstruction: systemInstructionText
     });
 
-    // ----------------------------------------------------------------
-    // 🧠 MULTI-TURN CHAT CONTEXT MEMORY MOTORU
-    // Frontend'den gelen tüm mesajları Gemini formatına dönüştürüyoruz
-    // ----------------------------------------------------------------
-    const contents = messages.map((m: any, idx: number) => {
-      const isLastMessage = idx === messages.length - 1;
-      const parts: any[] = [{ text: m.content }];
+    // 🧠 MULTI-TURN MEMORY STRUCTURE
+    // Frontend'den gelen tüm ağaç dizilimini hatasızca Gemini context yapısına map'liyoruz
+    const contents = [];
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      const parts: any[] = [{ text: m.content || "" }];
 
-      // Eğer döngüdeki son kullanıcı mesajı ise ve ekinde dosya varsa, onları da ekliyoruz
-      if (isLastMessage && m.role === "user" && attachments && attachments.length > 0) {
+      // Sadece en son mesaj kullanıcıya aitse ve eki varsa, payload içine inject et
+      if (m.role === "user" && i === messages.length - 1 && attachments && attachments.length > 0) {
         for (const attachment of attachments) {
           if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
             parts.push({
@@ -87,18 +85,16 @@ export async function POST(req: Request) {
         }
       }
 
-      return {
+      contents.push({
         role: m.role === "user" ? "user" : "model",
         parts: parts
-      };
-    });
+      });
+    }
 
-    // Kesin CoT basması için son bir kural enjekte et
+    // CoT etiketlemesini tetiklemek için son part'a küçük bir asistan direktifi ekle
     const lastPart = contents[contents.length - 1].parts;
-    const originalText = lastPart[0].text;
-    lastPart[0].text = `${originalText}\n\n⚠️ UNUTMA: Cevabına mutlaka <think> etiketiyle başlamalısın!`;
+    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına mutlaka <think> etiketiyle başlamalısın!`;
 
-    // 🚀 STREAMING RESPONDER
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
