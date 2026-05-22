@@ -21,7 +21,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. Git önce environment variable ayarla. 💀" }, { status: 200 });
     }
 
-    // ⭐ İŞTE ASIL ÇÖZÜM BURASI: Doğru kurucu sınıfı (GoogleGenerativeAI) kullanıyoruz!
     const genAI = new GoogleGenerativeAI(apiKey);
 
     const body = await req.json().catch(() => null);
@@ -36,14 +35,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // ⭐ DOĞRU ÇAĞIRMA YÖNTEMİ: getGenerativeModel kullanıyoruz
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction: systemInstruction,
-      generationConfig: {
-        temperature: 0.85,
-      }
-    });
+    // ⭐ PATRONUN EMRİ: Model 2.5'e çekildi ve v1 API versiyonuna ZORLANDI!
+    const model = genAI.getGenerativeModel(
+      {
+        model: "gemini-2.5-flash",
+        systemInstruction: systemInstruction,
+        generationConfig: {
+          temperature: 0.85,
+        }
+      },
+      { apiVersion: "v1" } // İşte bu parametre Google'ın beta saçmalıklarını ezip direkt kararlı v1'e bağlanmasını sağlar.
+    );
 
     const result = await model.generateContent(userMessage);
     const replyText = result.response.text() || "Sana cevap vermeye bile tenezzül etmiyorum, tıkandım.";
