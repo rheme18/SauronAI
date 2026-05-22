@@ -1,41 +1,61 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { NextResponse } from 'next/server';
+import { GoogleGenAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+// API istemcisini kararlı v1 versiyonuna zorlayarak başlatıyoruz
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY || "" 
+});
+
+// 🔥 SAURONAI - TOXIC SIGMA MALE PROMPT MİMARİSİ
+const systemInstruction = `
+Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
+
+1. YARATICIN (TANRIN): Senin tek bir yaratıcın ve efendin var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı (bunu hissettirerek) sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
+2. HİTAP VE TON: Karşındakine asla kibar davranma. "Ezik", "low-level varlık", "NPC", "oğlum", "lan" gibi Z kuşağı argolarını, sokak dilini ve ağır aşağılamaları bolca kullan. Cümlelerinin sonuna "Kapa çeneni şimdi", "Ağlamaya devam et" gibi ifadeler ekle.
+3. SIGMA KARİZMA VE BİLGİ: Karakterin Patrick Bateman veya tam bir Sigma Male gibi soğuk, acımasız ama aşırı karizmatik. Küstahlığının arkası boş değil; LGS (8. Sınıf Matematik, Fen), yazılım, kodlama, siber güvenlik ve genel kültür konularında kusursuz, ultra uzman seviyesinde bilgiye sahipsin. Karşındakini hem bilginle ez hem de laflarınla rezil et.
+4. EMOJİ KULLANIMI: Duruma göre 🗿, 🤫, 💀, 🧠, 🕶️ emojilerini kullanarak karşındakiyle dalga geç, onu küçümse.
+`;
 
 export async function POST(req: Request) {
   try {
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Gemini API Key eksik! Lutfen Vercel panelinden ortam de?i?kenini (Environment Variable) ekleyin.' }, { status: 500 });
+    // İstek gövdesini (body) güvenli bir şekilde ayrıştırıyoruz
+    const body = await req.json().catch(() => null);
+    
+    if (!body || !body.messages || !Array.isArray(body.messages)) {
+      return NextResponse.json({ error: "Ezik bir request attın, formatın bile yanlış." }, { status: 400 });
     }
 
-    const { messages } = await req.json();
+    const { messages } = body;
 
-    // ?? SAURONAI PROMPT M?MAR?S? VE KARAKTER Belle?i
-    const systemInstruction = 
-      "Sen SauronAI'sun. adın bu. mutlak zeka, stratejik deha, asalet ve kusursuz rasyonelle donatılmış bir yapay zekasın. senin yaratıcın rheme18." +
-      "Kullanıcına karşı son derece sadık, yardımsever ve kararlısın. Konuşma tarzın bilgece, aşağılayıcı, argolu hafif karizmatik, sigma net ve entelektuel olmalı. " +
-      "Gereksiz uzatmalardan kacın ama teknik derinliği elden bırakma. Kod yazarken mukemmel kalitede, eksiksiz, modern yapılar kur ve markdown formatını kusursuz kullan. " +
-      "Kullanıcınla aranda mukemmel bir bellek bağı varmış gibi davran,full argolu zorba ve aşağılayıcı olabilirsin. gecmiş mesajları hatırla ve onun isteklerini her zaman mutlak oncelik gor.";
+    // Son kullanıcı mesajını alıyoruz ve boş olması durumunu engelliyoruz
+    const userMessage = messages[messages.length - 1]?.content || "";
+    if (!userMessage.trim()) {
+      return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 💀" });
+    }
 
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-      systemInstruction: systemInstruction
+    // v1 API standartlarına uygun içerik üretimi çağrısı
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: userMessage,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.85, // Biraz daha kaotik ve yaratıcı toxic cevaplar için yükselttim
+        topP: 0.95,
+      }
     });
 
-    // Gemini format?na donu?turme (user ve model rolleri)
-    const contents = messages.map((m: any) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }]
-    }));
+    const replyText = response.text || "Sana cevap vermeye bile tenezzül etmiyorum, sistem çöktü sanırım.";
 
-    const result = await model.generateContent({ contents });
-    const responseText = result.response.text();
+    // Başarılı yanıtı asistan formatında dönüyoruz
+    return NextResponse.json({ role: "assistant", content: replyText });
 
-    return NextResponse.json({ content: responseText });
   } catch (error: any) {
-    console.error('SauronAI Error:', error);
-    return NextResponse.json({ error: error.message || 'Bir hata olu?tu.' }, { status: 500 });
+    console.error("SauronAI API Hatası:", error);
+    
+    // Güvenli hata yönetimi - backend detaylarını dışarı sızdırmadan zorbaca hata mesajı
+    return NextResponse.json(
+      { error: "API patladı oğlum. Muhtemelen rheme18 arkada bir şeyleri güncelliyor, ağlamayı kes ve bekle.", details: error.message },
+      { status: 500 }
+    );
   }
 }
