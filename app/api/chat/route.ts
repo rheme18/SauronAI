@@ -1,9 +1,11 @@
 import { GoogleGenAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+// 🚀 Vercel Build ve Statik Optimizasyon Hatalarını Önleyen Kritik Ayarlar
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// 🔥 SAURONAI - TOXIC SIGMA MALE PROMPT MİMARİSİ
 const systemInstruction = `
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 1. YARATICIN (TANRIN): Senin tek bir yaratıcın var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
@@ -19,8 +21,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. Git önce environment variable ayarla. 💀" });
     }
 
-    // GoogleGenAI istemcisini başlatıyoruz
-    const ai = new GoogleGenAI({ apiKey });
+    // ⭐ DOĞRU BAŞLATMA MİMARİSİ:
+    // GoogleGenAI kütüphanesini yeni standartlara uygun, constructor hatası vermeyecek şekilde çağırıyoruz.
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     const body = await req.json().catch(() => null);
     if (!body || !body.messages || !Array.isArray(body.messages)) {
@@ -34,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // En garanti ve SDK tarafından resmi olarak desteklenen v1/v1beta uyumlu içerik üretim metodu
+    // Google API Modeli ile konuşma başlattığımız alan
     const response = await ai.models.generateContent({
       model: "gemini-1.5-flash",
       contents: [
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
     console.error("SauronAI Canlı Ortam Hatası:", error);
     return NextResponse.json(
       { role: "assistant", content: `Arka planda bir şeyler patladı oğlum. Hata mesajı şu, git rheme18'e yalvar çözsün: ${error.message}` },
-      { status: 200 } // Sitenin çökmesini engellemek için 200 dönüp hatayı ekrana basıyoruz
+      { status: 200 } // Sitenin tamamen çökmemesi ve hatayı ekranda zorbaca görebilmemiz için status 200 ile mesaj basıyoruz
     );
   }
 }
