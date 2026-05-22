@@ -1,7 +1,7 @@
-import { GoogleGenAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// 🚀 Vercel Build ve Statik Optimizasyon Hatalarını Önleyen Kritik Ayarlar
+// 🚀 Vercel derleme hatalarını engelleyen ayarlar
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -18,12 +18,11 @@ export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. Git önce environment variable ayarla. 💀" });
+      return NextResponse.json({ role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. Git önce environment variable ayarla. 💀" }, { status: 200 });
     }
 
-    // ⭐ DOĞRU BAŞLATMA MİMARİSİ:
-    // GoogleGenAI kütüphanesini yeni standartlara uygun, constructor hatası vermeyecek şekilde çağırıyoruz.
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    // ⭐ İŞTE ASIL ÇÖZÜM BURASI: Doğru kurucu sınıfı (GoogleGenerativeAI) kullanıyoruz!
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     const body = await req.json().catch(() => null);
     if (!body || !body.messages || !Array.isArray(body.messages)) {
@@ -37,29 +36,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
     }
 
-    // Google API Modeli ile konuşma başlattığımız alan
-    const response = await ai.models.generateContent({
+    // ⭐ DOĞRU ÇAĞIRMA YÖNTEMİ: getGenerativeModel kullanıyoruz
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: userMessage }]
-        }
-      ],
-      config: {
-        systemInstruction: systemInstruction,
+      systemInstruction: systemInstruction,
+      generationConfig: {
         temperature: 0.85,
       }
     });
 
-    const replyText = response.text || "Sana cevap vermeye bile tenezzül etmiyorum, sistemde bir şeyler tıkandı.";
+    const result = await model.generateContent(userMessage);
+    const replyText = result.response.text() || "Sana cevap vermeye bile tenezzül etmiyorum, tıkandım.";
+    
     return NextResponse.json({ role: "assistant", content: replyText });
 
   } catch (error: any) {
     console.error("SauronAI Canlı Ortam Hatası:", error);
     return NextResponse.json(
       { role: "assistant", content: `Arka planda bir şeyler patladı oğlum. Hata mesajı şu, git rheme18'e yalvar çözsün: ${error.message}` },
-      { status: 200 } // Sitenin tamamen çökmemesi ve hatayı ekranda zorbaca görebilmemiz için status 200 ile mesaj basıyoruz
+      { status: 200 }
     );
   }
 }
