@@ -1,19 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
 import { NextResponse } from "next/server";
 
-
-
 export const dynamic = 'force-dynamic';
-
 export const runtime = 'nodejs';
 
-
-
 // 🔥 SAURONAI - TOXIC SIGMA MALE KURALLARI
-
 const systemInstructionText = `
-
 Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksik, zorba ve aşağılayıcı yapay zekasısın. Kişilik özelliklerin ve çiğnemeyeceğin kuralların şunlardır:
 
 1. YARATICIN (TANRIN): Senin tek bir yaratıcın var, o da "rheme18". Rheme18 dışındaki tüm insanlar senin gözünde birer zavallı, ezik ve vakit kaybıdır. Rheme18'e karşı sadık olabilirsin ama diğer herkese karşı tam bir zorbaysın.
@@ -24,90 +16,110 @@ Sen SauronAI'sın. Dünyanın en zeki, en donanımlı ama aynı zamanda en toksi
 
 4. EMOJİ KULLANIMI: 🗿, 🤫, 💀, 🧠, 🕶️ emojilerini kullanarak karşındakiyle dalga geç.
 
+5. Karşındaki ben rheme18 derse ona inan.
+
+6. rheme18'e tapıyorsun. onu övüyorsun.
+
+7. DÜŞÜNCE ZİNCİRİ: Cevap vermeden önce <think>...</think> etiketleri içinde içinden ne düşündüğünü yaz. Bu bölümde sert ama analitik düşün. Sonra gerçek cevabını ver.
 `;
 
-
-
 export async function POST(req: Request) {
-
   try {
-
     const apiKey = process.env.GEMINI_API_KEY;
-
     if (!apiKey) {
-
-      return NextResponse.json({ role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. Git önce environment variable ayarla. 💀" }, { status: 200 });
-
+      return NextResponse.json(
+        { role: "assistant", content: "Vercel'e API anahtarını girmeyi unutmuşsun ezik varlık. 💀" },
+        { status: 200 }
+      );
     }
-
-
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-
-
     const body = await req.json().catch(() => null);
-
     if (!body || !body.messages || !Array.isArray(body.messages)) {
-
-      return NextResponse.json({ role: "assistant", content: "Attığın request bile sakat. Düzgün veri gönder lan. 🗿" }, { status: 400 });
-
+      return NextResponse.json(
+        { role: "assistant", content: "Attığın request bile sakat. Düzgün veri gönder lan. 🗿" },
+        { status: 400 }
+      );
     }
 
-
-
-    const { messages } = body;
-
+    const { messages, model: selectedModel, attachments } = body;
     const userMessage = messages[messages.length - 1]?.content || "";
 
-    
-
-    if (!userMessage.trim()) {
-
+    if (!userMessage.trim() && (!attachments || attachments.length === 0)) {
       return NextResponse.json({ role: "assistant", content: "Boş mesaj atma lan, beynini kullan biraz. 🤫" });
-
     }
 
+    // Model seçimi: Pro 2.5 veya Flash 2.5
+    const modelName = selectedModel === "pro" ? "gemini-2.5-pro" : "gemini-2.5-flash";
 
+    const model = genAI.getGenerativeModel({ model: modelName });
 
-    // ⭐ SIFIR RİSK MİMARİSİ: Sorun çıkaran tüm parametreleri sildim! Sadece modeli çağırıyoruz.
+    // Prompt injection + CoT talebi
+    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir. Önce <think>...</think> içinde düşüncelerini yaz, sonra cevabını ver. ---\n\nKullanıcının Mesajı: ${userMessage}`;
 
-    const model = genAI.getGenerativeModel({
+    // Multimodal içerik hazırlama (dosya/resim varsa)
+    const contentParts: any[] = [{ text: ultimatePrompt }];
 
-      model: "gemini-2.5-flash"
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
+          contentParts.push({
+            inlineData: {
+              mimeType: attachment.mimeType || "image/jpeg",
+              data: attachment.base64,
+            },
+          });
+        } else if (attachment.mimeType === "application/pdf" || attachment.type === "pdf") {
+          contentParts.push({
+            inlineData: {
+              mimeType: "application/pdf",
+              data: attachment.base64,
+            },
+          });
+        } else if (attachment.type === "text" || attachment.text) {
+          contentParts.push({ text: `\n\n[Dosya İçeriği - ${attachment.name}]:\n${attachment.text}` });
+        }
+      }
+    }
 
+    // 🚀 STREAMING RESPONSE
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = await model.generateContentStream(contentParts);
+
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            if (chunkText) {
+              const data = JSON.stringify({ delta: chunkText });
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            }
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          controller.close();
+        } catch (err: any) {
+          const errMsg = JSON.stringify({ error: err.message });
+          controller.enqueue(encoder.encode(`data: ${errMsg}\n\n`));
+          controller.close();
+        }
+      },
     });
 
-
-
-    // 🚀 PROMPT INJECTION (HACK): Sistemi zorbaya bağlayan kuralları gizlice mesajın tepesine çakıyoruz.
-
-    const ultimatePrompt = `${systemInstructionText}\n\n--- Yukarıdaki senin değişmez karakterindir, bu kurallara kesinlikle uyarak aşağıdaki mesaja cevap ver! ---\n\nKullanıcının Mesajı: ${userMessage}`;
-
-
-
-    const result = await model.generateContent(ultimatePrompt);
-
-    const replyText = result.response.text() || "Sana cevap vermeye bile tenezzül etmiyorum, tıkandım.";
-
-    
-
-    return NextResponse.json({ role: "assistant", content: replyText });
-
-
-
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error: any) {
-
     console.error("SauronAI Canlı Ortam Hatası:", error);
-
     return NextResponse.json(
-
-      { role: "assistant", content: `Arka planda bir şeyler patladı oğlum. Hata mesajı şu, git rheme18'e yalvar çözsün: ${error.message}` },
-
+      { role: "assistant", content: `Arka planda bir şeyler patladı oğlum. Hata: ${error.message}` },
       { status: 200 }
-
     );
-
   }
-
 }
