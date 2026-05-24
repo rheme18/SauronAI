@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+// 🔥 İŞTE KÖK ÇÖZÜM BURADA PATRON: Node.js yerine Edge runtime kullanıyoruz. 
+// Vercel'de streaming'in takılmaması için tek kesin kural budur.
+export const runtime = 'edge'; 
 
 // 🔥 SAURONAI - RHEME18'E SADIK, DİĞERLERİNE TOKSİK MÜHENDİS (GÜNCELLENMİŞ ÇEKİRDEK)
 const systemInstructionText = `
@@ -23,19 +24,28 @@ export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ role: "assistant", content: "API key yok patron, Vercel paneline girmeyi unutmuşsun! 💀" }, { status: 200 });
+      return new Response(
+        JSON.stringify({ role: "assistant", content: "API key yok patron, Vercel paneline girmeyi unutmuşsun! 💀" }), 
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const body = await req.json().catch(() => null);
     
     if (!body || !body.messages || !Array.isArray(body.messages)) {
-      return NextResponse.json({ role: "assistant", content: "Gelen request formatı bozuk patron, frontend'de bir şeyler karışmış." }, { status: 400 });
+      return new Response(
+        JSON.stringify({ role: "assistant", content: "Gelen request formatı bozuk patron, frontend'de bir şeyler karışmış." }), 
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const { messages, model: selectedModel, attachments, memories } = body;
 
-    // Ayarlardan gelen bellekleri sistem komutuna enjekte et (Dynamic System Instruction)
+    // Bağlantı kopma sinyali (Kullanıcı sayfadan çıkarsa kilitlenmeyi önler)
+    const signal = req.signal;
+
+    // Ayarlardan gelen bellekleri sistem komutuna enjekte et
     let dynamicSystemInstruction = systemInstructionText;
     if (memories && Array.isArray(memories) && memories.length > 0) {
       dynamicSystemInstruction += `\n\n[RHEME18'İN KAYITLI BELLEĞİ - BUNLARI ASLA UNUTMA VE UYGULA]:\n${memories.map((m: string) => `- ${m}`).join('\n')}`;
@@ -52,7 +62,6 @@ export async function POST(req: Request) {
       const m = messages[i];
       const parts: any[] = [{ text: m.content || "" }];
 
-      // Sadece en son mesaj kullanıcıya aitse eklentileri (fotoğraf/dosya) ekle
       if (m.role === "user" && i === messages.length - 1 && attachments && attachments.length > 0) {
         for (const attachment of attachments) {
           if (attachment.type === "image" || attachment.mimeType?.startsWith("image/")) {
@@ -68,36 +77,45 @@ export async function POST(req: Request) {
       contents.push({ role: m.role === "user" ? "user" : "model", parts: parts });
     }
 
-    // CoT etiketini başlatması için zorlayıcı minik prompt enjeksiyonu
     const lastPart = contents[contents.length - 1].parts;
     lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına kesinlikle doğrudan <think> etiketi açarak başlamalısın! Başka bir şey yazma, direkt düşünmeye başla.`;
 
     const encoder = new TextEncoder();
     
-    // GÜVENLİ VE HATA YAKALAYAN STREAM OLUŞTURUCU
+    // GÜVENLİ VE PERFORMANSLI EDGE STREAM
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const result = await model.generateContentStream({ contents });
+          // req.signal'i modele de iletiyoruz ki istek iptal olursa API araması da dursun
+          const result = await model.generateContentStream({ contents }, { signal });
+          
           for await (const chunk of result.stream) {
+            // İstemci bağlantıyı kopardıysa akışı durdur
+            if (signal.aborted) break;
+
             try {
               const chunkText = chunk.text();
               if (chunkText) {
-                // JSON.stringify ile stringler güvenle escape edilir
                 const data = JSON.stringify({ delta: chunkText });
-                // Çift \n koyarak Server-Sent Events standartlarını tam sağlıyoruz
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
             } catch (chunkError) {
-              // chunk.text() güvenlik filtresi veya boş veri nedeniyle hata fırlatabilir,
-              // akışın çökmemesi için bu hatayı sessizce geçiyoruz.
+              // Güvenlik filtreleri vb. nedenlerle atlanan ufak parçaları es geç
             }
           }
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          
+          // Akış başarıyla bittiyse ve iptal olmadıysa done gönder
+          if (!signal.aborted) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+          }
           controller.close();
         } catch (err: any) {
-          // Model üretimi sırasında (örn. güvenlik politikası engeli) hata olursa frontend'e fırlat
-          const errorData = JSON.stringify({ error: err.message });
+          if (err.name === 'AbortError') {
+            // Kullanıcı request'i iptal etmiş, sessizce kapat
+            controller.close();
+            return;
+          }
+          const errorData = JSON.stringify({ error: err.message || "Modelden yanıt alınamadı." });
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
           controller.close();
         }
@@ -109,11 +127,14 @@ export async function POST(req: Request) {
         "Content-Type": "text/event-stream", 
         "Cache-Control": "no-cache, no-transform", 
         "Connection": "keep-alive",
-        "Content-Encoding": "none", // <-- NEXT.JS BUFFERING İPTALİ (Kritik)
-        "X-Accel-Buffering": "no"   // <-- VERCEL/NGINX BUFFERING İPTALİ (Kritik)
+        "Content-Encoding": "none",
+        "X-Accel-Buffering": "no"
       },
     });
   } catch (error: any) {
-    return NextResponse.json({ role: "assistant", content: `Sunucu tarafında kritik bir çökme yaşandı patron: ${error.message}` }, { status: 200 });
+    return new Response(
+      JSON.stringify({ role: "assistant", content: `Sunucu tarafında kritik bir çökme yaşandı patron: ${error.message}` }), 
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
