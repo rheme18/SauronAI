@@ -77,17 +77,25 @@ export async function POST(req: Request) {
       contents.push({ role: m.role === "user" ? "user" : "model", parts: parts });
     }
 
-    const lastPart = contents[contents.length - 1].parts;
-    lastPart[0].text = `${lastPart[0].text}\n\n⚠️ UNUTMA: Cevabına kesinlikle doğrudan <think> etiketi açarak başlamalısın! Başka bir şey yazma, direkt düşünmeye başla.`;
+    // 🔥 FIX: Son mesajı doğrudan mutate etmek yerine kopyasını oluştur
+    // Bu sayede orijinal obje bozulmuyor ve parts[0].text güvenle erişilebiliyor
+    const lastMessage = contents[contents.length - 1];
+    const lastParts = lastMessage.parts.map((p: any) => ({ ...p }));
+    lastParts[0] = {
+      ...lastParts[0],
+      text: `${lastParts[0].text || ""}\n\n⚠️ UNUTMA: Cevabına kesinlikle doğrudan <think> etiketi açarak başlamalısın! Başka bir şey yazma, direkt düşünmeye başla.`
+    };
+    contents[contents.length - 1] = { ...lastMessage, parts: lastParts };
 
     const encoder = new TextEncoder();
     
-    // GÜVENLİ VE PERFORMANSLI EDGE STREAM
+    // 🔥 FIX: signal'i generateContentStream'e geçirmiyoruz.
+    // Gemini SDK bu overload'ı desteklemiyor — edge runtime'da sessizce stream'i kilitliyor.
+    // Bunun yerine signal.aborted kontrolünü loop içinde tutuyoruz, bu yeterli.
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // req.signal'i modele de iletiyoruz ki istek iptal olursa API araması da dursun
-          const result = await model.generateContentStream({ contents }, { signal });
+          const result = await model.generateContentStream({ contents });
           
           for await (const chunk of result.stream) {
             // İstemci bağlantıyı kopardıysa akışı durdur
