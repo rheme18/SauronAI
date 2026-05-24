@@ -80,12 +80,17 @@ export async function POST(req: Request) {
         try {
           const result = await model.generateContentStream({ contents });
           for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
-            if (chunkText) {
-              // JSON.stringify ile stringler güvenle escape edilir
-              const data = JSON.stringify({ delta: chunkText });
-              // Çift \n koyarak Server-Sent Events standartlarını tam sağlıyoruz
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            try {
+              const chunkText = chunk.text();
+              if (chunkText) {
+                // JSON.stringify ile stringler güvenle escape edilir
+                const data = JSON.stringify({ delta: chunkText });
+                // Çift \n koyarak Server-Sent Events standartlarını tam sağlıyoruz
+                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+              }
+            } catch (chunkError) {
+              // chunk.text() güvenlik filtresi veya boş veri nedeniyle hata fırlatabilir,
+              // akışın çökmemesi için bu hatayı sessizce geçiyoruz.
             }
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
@@ -102,8 +107,10 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: { 
         "Content-Type": "text/event-stream", 
-        "Cache-Control": "no-cache", 
-        Connection: "keep-alive" 
+        "Cache-Control": "no-cache, no-transform", 
+        "Connection": "keep-alive",
+        "Content-Encoding": "none", // <-- NEXT.JS BUFFERING İPTALİ (Kritik)
+        "X-Accel-Buffering": "no"   // <-- VERCEL/NGINX BUFFERING İPTALİ (Kritik)
       },
     });
   } catch (error: any) {
